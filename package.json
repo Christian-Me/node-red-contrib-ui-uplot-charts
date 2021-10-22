@@ -1,0 +1,48 @@
+{
+  "name": "node-red-contrib-ui-uplot-charts",
+  "version": "0.0.1",
+  "description": "alternative chart widget for the Node-RED dashboard",
+  "peerDependencies": {
+    "node-red-dashboard": ">2.15.0"
+  },
+  "author": "Christian Meinert (https://github.com/Chistian-Me)",
+  "contributors": [],
+  "license": "Apache-2.0",
+  "keywords": [
+    "node-red",
+    "dashboard",
+    "widget",
+    "ui",
+    "uplot",
+    "chart"
+  ],
+  "bugs": {
+    "url": "https://github.com/Christian-Me/node-red-contrib-ui-uplot-charts/issues"
+  },
+  "homepage": "https://github.com/Christian-Me/node-red-contrib-ui-uplot-charts#README.md",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Christian-Me/node-red-contrib-ui-uplot-charts.git"
+  },
+  "node-red": {
+    "nodes": {
+      "ui_uplot-charts": "ui-uplot-charts.js"
+    }
+  },
+  "main": "ui-uplot-charts.js",
+  "plugins":[
+    "wheelZoomPlugin",
+    "columnHighlightPlugin",
+    "legendAsTooltipPlugin",
+    "touchZoomPlugin"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^11.0.1",
+    "@rollup/plugin-node-resolve": "^7.0.0",
+    "rollup": "^1.29.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c"
+  }
+}

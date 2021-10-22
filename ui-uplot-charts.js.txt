@@ -1,0 +1,328 @@
+/**
+ * Copyright 2021 Christian Meinert
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
+
+var path = require('path');
+
+module.exports = function(RED) {
+
+    function HTML(config) {
+        var configAsJson = JSON.stringify(config).replace(/[\/\(\)\']/g, "&apos;");
+
+        var html;
+
+            html = String.raw`
+                <link rel="stylesheet" href="ui-uplot-charts/css/uPlot.min.css">
+                <script type='text/javascript' src='ui-uplot-charts/js/uPlot.iife.min.js'></script>
+                <div class="uplot-charts-container" id="uplot-charts-container-${config.id}" style="display:flex; flex-direction: ${(config.placement==='above') ? "column" : "row"};" ng-init='init(` + configAsJson + `)'>
+                </div>
+             `;
+
+            return html;
+        }
+
+    function checkConfig(node, conf) {
+        if (!conf || !conf.hasOwnProperty("group")) {
+            node.error(RED._("ui_uplot-charts.error.no-group"));
+            return false;
+        }
+        return true;
+    }
+
+    var ui = undefined;
+
+    function uPlotUINode(config) {
+        try {
+            var node = this;
+            var _dataMap = {}; // data lookup topic vs array rows
+
+            if(ui === undefined) {
+                ui = RED.require("node-red-dashboard")(RED);
+            }
+            RED.nodes.createNode(this, config);
+
+            if (checkConfig(node, config)) {
+                // Add default values to older nodes (version 1.0.0)
+                config.stateField = config.stateField || 'payload';
+                config.enableField = config.enableField || 'enable';
+                config.width=parseInt(config.width);
+                config.height=parseInt(config.height);
+                var group = RED.nodes.getNode(config.group);
+                config.groupId = group.id;
+
+                getSiteProperties = function () {
+                    var opts = {}
+                    opts.sizes = { sx: 48, sy: 48, gx: 4, gy: 4, cx: 4, cy: 4, px: 4, py: 4 }
+                    opts.theme = {
+                        'group-borderColor': {
+                            value: "#097479"
+                        }
+                    }
+    
+                    if (typeof ui.getSizes === "function") {
+                        if (ui.getSizes()) {
+                            opts.sizes = ui.getSizes();
+                        }
+                        if (ui.getTheme()) {
+    
+                            opts.theme = ui.getTheme();
+                        }
+                    }
+                    return opts
+                }
+                config.site = getSiteProperties();
+
+                var getUiControl = function () {
+                    return {
+                    }
+                }
+                config.ui_control = getUiControl();
+    
+                /**
+                *  calculate horizontal dimension in pixel out of grid units
+                *   @param  {number} gridX  width in number of grids 
+                *   @return {number} dimension in pixel
+                **/
+                var getX = function(gridX) {
+                    return ((gridX===0) ? 0 : parseInt(config.site.sizes.sx * gridX + config.site.sizes.cx * (gridX - 1)));
+                }
+                /**
+                *  calculate vertical dimension in pixel out of grid units
+                *   @param  {number} gridY  height in number of grids 
+                *   @return {number} dimension in pixel
+                **/
+                var getY = function(gridY) {
+                    return ((gridY===0) ? 0 : parseInt(config.site.sizes.sy * gridY + config.site.sizes.cy * (gridY - 1)));
+                }
+
+                config.widgetProperties = {
+                    x: getX((config.width!==0) ? config.width : group.config.width)-12,
+                    y: getY((config.height!==0) ? config.height : group.config.width)-12, // square as default
+                };
+
+                node.on("input", function(msg) {
+                    node.topi = msg.topic;
+                });
+
+                var sizes = ui.getSizes();
+                var html = HTML(config);                    // *REQUIRED* !!DO NOT EDIT!!
+                var done = ui.addWidget({                   // *REQUIRED* !!DO NOT EDIT!!
+                    type: 'chart',
+                    label: config.label,
+                    tooltip: config.tooltip,
+                    node: node,                             // *REQUIRED* !!DO NOT EDIT!!
+                    order: config.order,                    // *REQUIRED* !!DO NOT EDIT!!
+                    group: config.group,                    // *REQUIRED* !!DO NOT EDIT!!
+                    width: config.width,                    // *REQUIRED* !!DO NOT EDIT!!
+                    height: config.height,                  // *REQUIRED* !!DO NOT EDIT!!
+                    format: html,                           // *REQUIRED* !!DO NOT EDIT!!
+                    templateScope: "local",                 // *REQUIRED* !!DO NOT EDIT!!
+                    emitOnlyNewValues: false,               // *REQUIRED* Edit this if you would like your node to only emit new values.
+                    forwardInputMessages: false,  // *REQUIRED* Edit this if you would like your node to forward the input message to it's ouput.
+                    storeFrontEndInputAsState: false,       // *REQUIRED* If the widget accepts user input - should it update the backend stored state ?
+
+                    convertBack: function (value) {
+                        console.log('convertBack',value);
+                        return value;
+                    },
+
+                    convert: function(value,fullDataset,msg,step) {
+                        console.log('convert',fullDataset,msg,step);
+
+                        var conversion = {
+                            updatedValues: [],
+                            newPoint: {},
+                        }
+                        if (fullDataset) conversion.updatedValues = fullDataset;
+                        if (msg.topic=='') msg.topic = "unknown";
+                        if (node._dataMap === undefined) node._dataMap = {};
+                        if (!node._dataMap.hasOwnProperty(msg.topic)) {
+                            node._dataMap[msg.topic] = {index: Object.keys(node._dataMap).length+1};
+                            // newMsg._dataMap = node._dataMap;
+                        }
+                        node._dataMap[msg.topic].lastUpdate = Math.floor((msg.timestamp) ? msg.timestamp : (Date.now()/1000));
+                        
+                        // Try to get the specified message fields, and copy those to predefined fixed message fields.
+                        // This way the message has been flattened, so the client doesn't need to access the nested msg properties.
+                        // See https://discourse.nodered.org/t/red-in-ui-nodes/29824/2
+                        try {
+                            // Get the new state value from the specified message field
+                            conversion.newPoint.state = RED.util.getMessageProperty(msg, config.stateField || "payload");
+                        } 
+                        catch(err) {
+                            // No problem because the state field is optional ...
+                        }
+                        conversion.newPoint.topic = msg.topic;
+                        conversion.newPoint.dataId = node._dataMap[msg.topic];
+                        conversion.updatedValues.push(conversion.newPoint);
+                        conversion.update = true;
+                        console.log('conversion done:', conversion);
+                        return conversion;
+                    },
+
+                    beforeEmit: function(msg, fullDataset) {
+                        if (Array.isArray(fullDataset)) { return fullDataset };
+                        console.log(`beforeEmit:`, msg, fullDataset);
+                        var newMsg = fullDataset;
+                        
+                        if (msg) {
+                            // Copy the socket id from the original input message. 
+                            if (msg.socketid) newMsg.socketid = msg.socketid;
+                            
+                            console.log(`beforeEmit: (${msg.socketid})`, newMsg);
+                        } else {
+                            console.log('no Message',msg,fullDataset)
+                        }
+                        
+                        return { msg: newMsg };
+                    },
+
+                    beforeSend: function (msg, orig) {
+                        //console.log('beforeSend:',msg,orig,config.outFormat);
+                        if (orig) {
+                            var newMsg = {};
+
+                            // Store the switch state in the specified msg state field
+                            RED.util.setMessageProperty(newMsg, config.stateField, orig.msg.state, true)
+                            //orig.msg = newMsg;
+                            node.status({fill:"red", shape:'dot', text:"ok?"});
+                            var topic = RED.util.evaluateNodeProperty(config.topic,config.topicType || "str",node,msg) || node.topi;
+                            if (topic) { newMsg.topic = topic; }
+                            return newMsg;
+                        }
+                    },
+
+                    initController: function($scope, events) {
+                        var _data = [];
+                        var widgetDiv;
+                        $scope.flag = true;   // not sure if this is needed?
+
+
+                        /**
+                        *  creates an instance of the uPlot.js widget
+                        *   -   destroys existing instance
+                        *   -   register callback functions
+                        *       -   `input:start`   sets the `$scope.inputStarted` flag and btn an modal references
+                        *       -   `input:move`
+                        *       -   `input:end`
+                        *   @return {void}
+                        */
+                        var createUPlot = function () {
+                            console.log("create uPlot",$scope.config);
+                            if (!document.querySelector(widgetDiv)) {
+                                // <div id='ui_uplot_chart-{{$id}}' style="width:${config.widgetProperties.x}px; background-color:unset; border:unset;"></div>
+                                var uplotDiv = document.createElement("div");
+                                uplotDiv.setAttribute("class", 'uplot-charts-widget');
+                                uplotDiv.setAttribute("style", `width:${$scope.config.widgetProperties.x}px;`);
+                                uplotDiv.setAttribute("id", 'ui_uplot_chart-' + $scope.$eval('$id'));
+                                document.getElementById(`uplot-charts-container-${$scope.config.id}`).appendChild(uplotDiv);
+                            }
+                            if($scope.uPlot !== undefined) {
+                                $scope.uPlot.destroy();
+                            }
+
+                            $scope.uPlot = uPlot($scope.opts,_data,document.querySelector(widgetDiv));
+                        }
+
+                        $scope.init = function (config) {
+                            console.log('uPlot init',config,_data);
+                            $scope.config = config;
+                            widgetDiv = '#ui_uplot_chart-' + $scope.$eval('$id');
+                            if (_data===undefined) _data = [];
+
+                            $scope.opts = {
+                                title: "My Chart",
+                                id: widgetDiv,
+                                width: $scope.config.widgetProperties.x,
+                                height: $scope.config.widgetProperties.y,
+                                series: [
+                                  {},
+                                  {
+                                    // initial toggled state (optional)
+                                    show: true,
+                                    spanGaps: true,
+                              
+                                    // in-legend display
+                                    label: "Value 1",
+                                    value: (self, rawValue) => (Number(rawValue)) ? rawValue.toFixed(1)+"hPa" : "",
+                              
+                                    // series style
+                                    stroke: "red",
+                                    width: 1,
+                                    fill: "rgba(255, 0, 0, 0.3)",
+                                    dash: [10, 5],
+                                  }
+                                ],
+                              };
+            
+
+                            createUPlot();
+                        };
+
+                        $scope.$watch('msg', function(msg) {
+                            if (!msg) { return; } // Ignore undefined msg
+                            console.log('uPlot Message received:',msg,_data);
+                            if (msg.hasOwnProperty('state') && msg.dataId && msg.dataId.lastUpdate){
+                                if (_data[0]===undefined) _data[0]=[];
+                                let index = _data[0].push(msg.dataId.lastUpdate);
+                                switch (typeof msg.state) {
+                                    case "string":
+                                        msg.state = Number (msg.state);
+                                    case "number":
+                                        if (_data[msg.dataId.index]===undefined) _data[msg.dataId.index]=[];
+                                        _data[msg.dataId.index][index-1]=msg.state;
+                                        break;
+                                }
+                                console.log('Data:',_data);
+                                $scope.uPlot.setData(_data);
+                            }
+                        });
+
+                        $scope.colorButtonPress = function(e){
+                            if(document.getElementById(`colorModal-${$scope.config.id}`)) {
+                                document.getElementsByTagName("body")[0].removeChild(document.getElementById(`colorModal-${$scope.config.id}`));
+                            };
+                            var modal = document.getElementsByTagName("body")[0].appendChild(document.createElement("div"));
+                        };
+                    }
+                });
+            }
+        }
+        catch (e) {
+            console.warn(e);		// catch any errors that may occur and display them in the web browsers console
+        }
+
+        node.on("close", function() {
+            console.log("uPlot close");
+            done();
+        })
+
+    }
+
+    setImmediate(function() {
+        RED.nodes.registerType("ui_uplot-charts", uPlotUINode);
+
+        var uipath = 'ui';
+        if (RED.settings.ui) { uipath = RED.settings.ui.path; }
+        var fullPath = path.join('/', uipath, '/ui-uplot-charts/*').replace(/\\/g, '/');
+        RED.httpNode.get(fullPath, function (req, res) {
+            var options = {
+                root: __dirname + '/lib/',
+                dotfiles: 'deny'
+            };
+            res.sendFile(req.params[0], options)
+        });
+    })
+}

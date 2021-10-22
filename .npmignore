@@ -1,0 +1,6 @@
+/.vscode
+/.backup
+/.playground
+/dist
+node_module
+src

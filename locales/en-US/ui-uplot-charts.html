@@ -1,0 +1,137 @@
+<script type="text/html" data-help-name="ui_iro-color-picker">
+    <p>A Node-RED dashboard ui node to display various types of color pickers and sliders.</p>
+    <p></p>
+    <p>This node is based on the <a href="https://iro.js.org/">iro.js</a> <i>Modular, design-conscious color picker widget for JavaScript</i></p>
+    <p></p>
+    <p>Please refer to the documentation on <a href="https://flows.nodered.org/node/node-red-contrib-ui-iro-color-picker">flows.nodered.org</a> for further details</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">string | number| object</span></dt>
+        <dd>The same formats as the output formats are supported as input format. If a number is send to the input it is assumed that it is the same format as the output</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">string | number| object<</span></dt>
+        <dd>selected color value formatted as defined.</dd>
+        <dt>topic<span class="property-type">string | msg | flow | global</span></dt>
+        <dd>A string to identify the value. Can be defined as a constant Sting, by a message on the input or a context value in flow or global context.</dd>
+    </dl>
+
+    <h2>Configuration</h2>
+    <p>The configuration ist deviled on two tabs</p>
+    <h3>General</h3>
+    <h4>Label</h4>
+    <p>A label can be added to the widget</p>
+    <ul>
+        <li>an <b>indent</b> distance (in grid units) to determine the label width and align the widgets</li>
+        <li>the label can be <b>placed</b> either <i>left</i> or <i>above</i> the widget</li>
+        <li>the label can be adjusted horizontally and vertically</li>
+    </ul>
+    <h4>Initial Color</h4>
+    <p>This color will be used until the first message.payload with an valid color arrives on the input</p>
+    <h4>Type</h4>
+    <p>the widget can show up in two ways.</p>
+    <ul>
+        <li><b>as widget</b> placed on the dashboard</li>
+        <li><b>as popup</b> as a modal dialog triggered by a button. The Modal can be placed either centered to the button, group or window.</li>
+        <ul>
+            <li><b>size</b> specifies the size of the popup in grid units. **auto** od **0** defaults to group width</li>
+            <li><b>width</b> specifies the with of the popup relative scale of the size or to the group width</li>
+            <li><b>button</b> determines the width of the button in grid units</li>
+            <li><b>color</b> specifies the background color of the popup</li>
+            <li>if <b>picked</b> is selected the background color follows the selected color</li>
+            <li><b>alpha</b> 100% = opaque and 0% the background is transparent</li>
+        </ul>
+    </ul>
+    <h4>Output messages</h4>
+    <ul>
+        <li>incoming messages can be passed directly to the output</li>
+        <li>messages can be send either when the mouse button is <i>released</i> or <i>on user interaction</i><br>to limit the amount of messages send on user interaction:</li>
+        <ul>
+            <li>new messages only emit when the last message is <b>confirmed<b> by the backend. A minimum frequency can be specified</li>
+            <li>or a maximum frequency in messages per second</li>
+        </ul>
+        <li>the payload can be formatted in any format below</li>
+        <li>a topic can be added to the message</li>
+    </ul>
+
+    <h3>Component configuration</h3>
+    <p>iro.js offers a variety of different color picker styles. These can be combined as required showing a part of the color definition</p>
+    <p><b>IMPORTANT: If the selected components don't represent the complete color definition i.e. selecting the hue slider only, make sure that the initial color is defined accordingly!</b></p>
+    <ul>
+        <li><b>stacking</b> the components can be arranged either vertically (on above the next) or horizontally (one beside the next)</li>
+        <li><b>components</b> a combination out of several components can be selected and sorted.</li>
+    </ul>
+    <ul>
+        <li>Each component has these general options</li>
+        <ul>
+            <li><b>border</b> color</li>
+            <li><b>width</b> border width in pixel. 0 or none to disable</li>
+        </ul>
+        <li><i>color wheel<i>: The classic color wheel showing the hue. (Should be combined with a value slider)</li>
+        <ul>
+            <li><i>lightness</i><b>fade</b> to fade the wheel according to the lightness level <b>constant</b> to show full colors only</li>
+            <li><i>starting angle</i>of 0° hue level</li>
+            <li><i>direction</i>of the color wheel to be drawn</li>
+        </ul>
+        <li><i>color box<i>: Classic color box showing the saturation and lightness of a color. (Should be combined with a hue slider or wheel)</li>
+        <ul>
+            <li>the hight in pixel of the box can be specified. 0 or none for a square</li>
+        </ul>
+        <li> <i>sliders</i>several different sliders can be selected and combined</li>
+        <ul>
+            <li><i>hue<i></li>
+            <li><i>saturation<i></li>
+            <li><i>value</i>(lightness)</li>
+            <li><i>red<i></li>
+            <li><i>green<i></li>
+            <li><i>blue<i></li>
+            <li><i>alpha</i>(transparency)</li>
+            <li><i>color temperature</i>in ° Kelvin</li>
+            <ul>
+                <li>minimum value (>2.000°K)</li>
+                <li>maximum value (<40.000°K)</li>
+            </ul>
+        </ul>
+    </ul>
+
+    <h3>Supported Formats</h3>
+    <p>send and received as <code>msg.payload</code></p>
+    <ul>
+        <li>Hex string: "#ffffff"</li>
+        <li>Hex alpha string: "#ffffffff"</li>
+        <li>Shorthand hex string: "#fff"</li>
+        <li>Shorthand hex alpha string: "#ffff"</li>
+        <li>RGB string: "rgb(255, 255, 255)"</li>
+        <li>RGBA string: "rgba(255, 255, 255, 1)"</li>
+        <li>Percentage RGB string: "rgb(100%, 100%, 100%)"</li>
+        <li>Percentage RGBA string: "rgba(100%, 100%, 100%, 100%)"</li>
+        <li>RGB object: <code>{r: 255, g: 255, b: 255}</code></li>
+        <li>RGBA object: <code>{r: 255, g: 255, b: 255, a: 1}</code></li>
+        <li>HSL string: "hsl(360, 100%, 100%)"</li>
+        <li>HSLA string: "hsla(360, 100%, 100%, 1)"</li>
+        <li>HSL object: <code>{h: 360, s: 100, l: 100}</code></li>
+        <li>HSLA object: <code>{h: 360, s: 100, l: 100, a: 1}</code></li>
+        <li>HSV object: <code>{h: 360, s: 100, v: 100}</code></li>
+        <li>HSVA object: <code>{h: 360, s: 100, v: 100, a: 1}</code></li>
+        <li>Tuneable white <code>{v:100,t:6000}</code></li>
+        <li>RGBW object: <code>{r: 255, g: 255, b: 255, w: 255}</code></li>
+        <li>HSI object: <code>{h: 360, s: 100, i: 100}</code></li>
+        <li>Numeric value according to the output value</li>
+    </ul>
+    <p>in addition the following input formats are supported to set individual parameters</p>
+    <ul>
+        <li><code>msg.hue</code>0 - 360</li>
+        <li><code>msg.value</code>0 - 100</li>
+        <li><code>msg.saturation</code>0 - 100</li>
+        <li><code>msg.red</code>0 - 255</li>
+        <li><code>msg.yellow</code>0 - 255</li>
+        <li><code>msg.blue</code>0 - 255</li>
+        <li><code>msg.alpha</code>0 - 1</li>
+        <li><code>msg.kelvin</code>2.000 - 40.0000</li>
+    </ul>
+</p>
+ 
+</script>

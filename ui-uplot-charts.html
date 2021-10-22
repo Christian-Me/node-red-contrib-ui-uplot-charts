@@ -1,0 +1,1303 @@
+<script type="text/javascript">
+    const defaultSeries = {show:true, spanGaps:true, forward: false, width: 1, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)'}
+    const defaultAxes = {
+        show:true, width: 1, label:'unnamed', stroke:'rgba(127, 127, 127, 0.8)',
+        grid: {show:true, stroke:'rgba(127, 127, 127, 0.8)', width: 1, dash: [1,5]},
+        ticks: {show:true, stroke:'rgba(127, 127, 127, 0.8)', width: 2, dash: [], size: 10}
+    };
+    const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
+    const defaultAxesX =  {
+      space: 40,
+      incrs: [
+         // minute divisors (# of secs)
+         1,
+         5,
+         10,
+         15,
+         30,
+         // hour divisors
+         60,
+         60 * 5,
+         60 * 10,
+         60 * 15,
+         60 * 30,
+         // day divisors
+         3600,
+      // ...
+      ],
+      // [0]:   minimum num secs in found axis split (tick incr)
+      // [1]:   default tick format
+      // [2-7]: rollover tick formats
+      // [8]:   mode: 0: replace [1] -> [2-7], 1: concat [1] + [2-7]
+      values: [
+      // tick incr          default           year                             month    day                        hour     min                sec       mode
+        [3600 * 24 * 365,   "{YYYY}",         null,                            null,    null,                      null,    null,              null,        1],
+        [3600 * 24 * 28,    "{MMM}",          "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
+        [3600 * 24,         "{M}/{D}",        "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
+        [3600,              "{H}",            "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
+        [60,                "{H}:{mm}",       "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
+        [1,                 ":{ss}",          "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
+        [0.001,             ":{ss}.{fff}",    "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
+      ],
+  //  splits:
+    }
+
+    function RGBtoHEX (rgbaString, returnType = 'HEX') {
+        let toHex = function (value) {
+            if (value===undefined) return '';
+            value=parseInt(value).toString(16);
+            return (value.length === 1) ? '0'+value : value;
+        }
+        let parts = rgbaString.substring(rgbaString.indexOf('(')+1, rgbaString.indexOf(')')).split(',');
+        switch (returnType) {
+            case 'HEX': return '#'+toHex(parts[0])+toHex(parts[1])+toHex(parts[2]);
+            case 'HEX8': return '#'+toHex(parts[0])+toHex(parts[1])+toHex(parts[2])+toHex(parts[3]*255);
+            case 'ALPHA1': return parts[3];
+            case 'ALPHA255': return parts[3]*255;
+            case 'ALPHA100': return parts[3]*100;
+        }
+    }
+
+    function HEXtoRGB (hexString, alpha, alphaType = 'ALPHA100') {
+        let components = [];
+
+        for (let i = 1; i<hexString.length; i += 2) {
+            components.push(Number("0x" + hexString.substr(i,2)));
+        }
+        if (components.length === 3 && alpha !== undefined) {
+            switch (alphaType) {
+                case 'ALPHA1': components.push(alpha); break;
+                case 'ALPHA100': components.push(alpha/100); break;
+                case 'ALPHA255': components.push(alpha/255); break;
+            }
+        }
+        if (components.length < 4) {
+            return `rgb(${components[0]},${components[1]},${components[2]})`;
+        } else {
+            return `rgba(${components[0]},${components[1]},${components[2]},${components[3].toFixed(2)})`;
+        }
+    }
+
+    function uplotResizeList (tab,id) {
+        var height = $("#dialog-form").height();
+        var formRows = $(`#dialog-form>div:not(#node-uplot-config-tabs-content)`);
+        for (let i=0; i<formRows.size(); i++) {
+            height -= $(formRows[i]).outerHeight(true);
+        }
+        // resize editableList
+        let tabRows = $(`#${tab}>div:not(.node-input-${id}-container-row)`);
+        for (let i=0; i<tabRows.size(); i++) {
+            height -= $(tabRows[i]).outerHeight(true);
+        }
+        $(`#node-input-${id}-container`).editableList('height',height-10);
+    }
+
+    function addValueOrFunction (config,param,value) {
+        if (typeof String.prototype.parseFunction != 'function') {
+            String.prototype.parseFunction = function () {
+                var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
+                var match = funcReg.exec(this.replace(/\n/g, ' '));
+                if(match) {
+                    return new Function(match[1].split(','), match[2]);
+                }
+                return null;
+            };
+        }
+        var valueFunction;
+        if (typeof value === "string" && (valueFunction = value.parseFunction())) {
+            config[param]=valueFunction.bind($scope); // to enable this.send() for callback functions.
+        }
+        else config[param]= value;
+    }
+
+    function mergeObject (destinationObject,sourceObject) {
+        for (var element in sourceObject) {
+            if (!destinationObject[element]) destinationObject[element]=(Array.isArray(sourceObject[element]))? [] : {};
+            if (typeof sourceObject[element] === "object") {
+                mergeObject(destinationObject[element],sourceObject[element])
+            } else {
+                addValueOrFunction(destinationObject,element,sourceObject[element]);
+            }
+        }
+    }
+    /**
+    *  add item to an array of objects identified by a key
+    *   @param  {array} target array of objects
+    *   @param  {object} item object to add
+    *   @param  {string} key identifier to match existing
+    *   @param  {object} (optional) defaultObject if new
+    *   @param  {function (item,index)} (optional) callback if default object is added to manipulate individual values
+    **/
+    function addOrUpdateItem(target, item, key, defaultObject = {}, update) {
+        if (!item || !item.hasOwnProperty(key)) return;
+        let index = target.findIndex(element => element[key] === item[key])
+        
+        if (index<0) { 
+            index = target.push({})-1;
+            mergeObject(target[index], defaultObject);
+            if (update!==undefined) update(target[index],index);
+        }
+        mergeObject(target[index],item);
+        return target[index];
+    }
+
+    function uplotGetConfig(node,query, params, doneCallback) {
+        var config = {'query': query, 'params': params };
+        //console.log('uplotGetConfig query', node.id, query);
+        $.getJSON("/uPlot/"+node.id, config)
+        .done( doneCallback )
+        .fail( function(e1, e2, e3) {
+            console.error("uplotGetConfig error : " + JSON.stringify(e1));
+        });
+    }
+
+    RED.nodes.registerType('ui_uplot-charts',{
+
+        category: 'Dashboard',
+        color: 'rgb( 63, 173, 181)',
+
+        defaults: {
+            group: {type: 'ui_group', required:true},
+            order: {value: 0},
+            width: {
+                value: 0,
+                validate: function(v) {
+                    var valid = true
+                    var width = v||0;
+                    var currentGroup = $('#node-input-group').val()|| this.group;
+                    var groupNode = RED.nodes.node(currentGroup);
+                    valid = !groupNode || +width <= +groupNode.width;
+                    $("#node-input-size").toggleClass("input-error",!valid);
+                    return valid;
+                }},
+
+            height: {value: 0},
+            name: {value: ''},
+            title: {value: ''},
+            series: {value: []},
+            scales: {value: []},
+            axes: {value: []},
+            axesX: {value: {}},
+            plugins: {value: []},
+            dataPlugins: {value: []},
+            dataStore: {value: {}},
+            debugServer: {value: false},
+            debugClient: {value: false},
+            spaceForTitle: {value: 50},
+            spaceForLegend: {value: 50}
+        },
+
+        inputs:1,
+        outputs:1,
+        icon: "uPlot.svg",
+        paletteLabel:"uplot chart",
+
+        label: function() {
+            return this.name || this.label || "uplot-charts";
+            // return this.name || (~this.label.indexOf("{{") ? null : this.label) || "uplot-charts";
+        },
+        labelStyle: function() {
+            return this.name?"node_label_italic":"";
+        },
+
+        oneditprepare: function() {
+            var node = this;
+            uplotGetConfig(node,'series', undefined, ( (data) => {
+                    //console.log('uplotGetConfig series', data);
+                    Object.keys(data).forEach(item => {
+                        addOrUpdateItem(node.series,data[item],'topic',defaultSeries,
+                            (item,index) => {
+                                let color = (defaultColors[index]!==undefined) ? defaultColors[index] : '#ff0000';
+                                item.stroke = HEXtoRGB(color ,100);
+                                item.fill = HEXtoRGB(color,30);
+                                item.topicReadOnly = true;
+                            }
+                        );
+                    });
+                    $("#node-input-series-container").editableList('empty');
+                    node.series.forEach(item => {
+                        $("#node-input-series-container").editableList('addItem',item);
+                    });
+                })
+            );
+
+            $("#node-input-size").elementSizer({
+                width: "#node-input-width",
+                height: "#node-input-height",
+                group: "#node-input-group"
+            });
+
+            node.tabs = RED.tabs.create({
+                id: "node-uplot-config-tabs",
+                onchange: function(tab) {
+                    $("#node-uplot-config-tabs-content").children().hide();
+                    $("#" + tab.id).show();
+                    switch (tab.id) {
+                        case 'uplot-tab-main-1' : uplotResizeList(tab.id,'series'); break;
+                        case 'uplot-tab-main-2' : uplotResizeList(tab.id,'axes'); break;
+                        case 'uplot-tab-main-3' : uplotResizeList(tab.id,'scales'); break;
+                        case 'uplot-tab-main-4' : uplotResizeList(tab.id,'plugins'); break;
+                        case 'uplot-tab-main-5' : uplotResizeList(tab.id,'dataPlugins'); break;
+                    }
+                }
+            });
+            for (let i = 0; i<6; i++) {
+                let tabLabel = this._("uplot.tabs.main."+i);
+                node.tabs.addTab({
+                    id: "uplot-tab-main-"+i,
+                    node: this,
+                    label: tabLabel
+                });
+            }
+            const labelWidth = "20%";
+            const contentWidth = 78; // %
+            /**
+             * Set the value for the given object for the given path
+             * where the path can be a nested key represented with dot notation
+             * https://codereview.stackexchange.com/questions/194338/safely-setting-object-properties-with-dot-notation-strings-in-javascript
+             *
+             * @param {object} obj   The object on which to set the given value
+             * @param {string} path  The dot notation path to the nested property where the value should be set
+             * @param {mixed}  value The value that should be set
+             * @return {mixed}
+             *
+             */
+            function setProperty(obj, path, value) {
+                // protect against being something unexpected
+                obj = typeof obj === 'object' ? obj : {};
+                // split the path into and array if its not one already
+                var keys = Array.isArray(path) ? path : path.split('.');
+                // keep up with our current place in the object
+                // starting at the root object and drilling down
+                var curStep = obj;
+                // loop over the path parts one at a time
+                // but, dont iterate the last part,
+                for (var i = 0; i < keys.length - 1; i++) {
+                    // get the current path part
+                    var key = keys[i];
+
+                    // if nothing exists for this key, make it an empty object or array
+                    if (!curStep[key] && !Object.prototype.hasOwnProperty.call(curStep, key)){
+                        // get the next key in the path, if its numeric, make this property an empty array
+                        // otherwise, make it an empty object
+                        var nextKey = keys[i+1];
+                        var useArray = /^\+?(0|[1-9]\d*)$/.test(nextKey);
+                        curStep[key] = useArray ? [] : {};
+                    }
+                    // update curStep to point to the new level
+                    curStep = curStep[key];
+                }
+                // set the final key to our value
+                var finalStep = keys[keys.length - 1];
+                curStep[finalStep] = value;
+                return value;
+            };
+
+
+            function UiElements (root,id) {
+                this.root = root;
+                this.id = id;
+                this.uiElements = {};
+                this._groupId = '';
+                this._groups = [];
+                this._container= null;
+                this._parentContainer = null;
+                this._lastId = '';
+                this.setRow = function(row) {
+                    this._groupId = '';
+                    this._container=row;
+                    // this._container.css('display','inline-block');
+                    return this;
+                }
+                this.setGroup = function(groupId,show=true,cssClass='') {
+                    this._groupId = groupId;
+                    if (!this._groups.find(element => id === groupId)) { this._groups.push({
+                            id:groupId,
+                            parent:this._container
+                        })
+                    };
+                    let classClassString = (cssClass) ? `class="${cssClass}" ` : '';
+                    this._parentContainer = this._container;
+                    this._container = $(`<div ${classClassString}id="node-group-${this.id}-${groupId}" style="${(show)? '' : 'display:none'}">`).appendTo(this._container);
+                }
+                this.closeGroup = function() {
+                    this._container=this._parentContainer;
+                    this._parentContainer = null;
+                }
+                this.setGroupVisibility = function(element, parentId = '', groupId = '') {
+                    let children = element.parent().find(`#node-group-${this.id}-${parentId}`).children();
+                    children.fadeOut(200);
+                    children.parent().find(`#node-group-${this.id}-${groupId}`).fadeIn(200);
+                }
+                this.addEvent = function(onEvent = "click", event = null, id) {
+                    if (id === undefined) id = this._lastId;
+                    this.uiElements[id].element.on(onEvent,( function() { 
+                        event($(this));
+                    }))
+                }
+                this.getElements = function() {
+                    return this.uiElements;
+                }
+                this.addClassicLabel = function(label, icon = '') {
+                    let forId = `node-input-${(this.id!=='') ? this.id+'-' : ''}${label}`;
+                    label = node._(this.root+"."+this.id+".label." + ((this._groupId!=='') ? this._groupId+'.' : '') + label);
+                    icon = icon ? `<i class="${icon}"></i>` : '';
+                    $(`<label for="${forId}">${icon}<span>${label}</span></label>`)
+                        .appendTo(this._container);
+                }
+                this.addLabel = function(label,width = labelWidth) {
+                    $(`<div><span>${node._(this.root+"."+this.id+".label." + ((this._groupId!=='') ? this._groupId+'.' : '') + label)}</span></div>`).css('display','inline-block').css('width',width).appendTo(this._container);
+                }
+                this.addInput = function(id,type,value, width = contentWidth, configId = '') {
+                    let def = {
+                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
+                        style: `width:${width};`,
+                        id: (configId ? `node-input-${configId}` : undefined),
+                        placeholder: node._(this.root+"."+this.id+".placeholder." + ((this._groupId!=='') ? this._groupId+'.' : '') + id)
+                    }
+                    switch (typeof type) {
+                        case 'string' :
+                            def.type = type;
+                            break;
+                        case 'object':
+                            Object.keys(type).forEach(key => {
+                                def[key] = type[key];
+                            })
+                    }
+                    if (this.uiElements[id]===undefined) this.uiElements[id]={id,def:def};
+                    this.uiElements[id].element = $('<input/>', def).appendTo(this._container);
+                    if (value !==undefined) this.uiElements[id].element.val(value);
+                    return this.uiElements[id].element;
+                }
+                this.addTypedInput = function(id,types,value,type,width = contentWidth, change = null) {
+                    this.uiElements[id]={id,def:{
+                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
+                        style: `width:${width};`,
+                        type: 'text',
+                        types: types
+                    }}
+                    this.uiElements[id].typedInput=true;
+                    switch (type) {
+                        case 'selected': // convert to comma separated string if necessary
+                            value = (Array.isArray(value)) ? value.toString() : value;
+                            break;
+                    }
+                    //console.log('addTypedInput', {type,value});
+
+                    let element = this.uiElements[id].element = $('<input/>', this.uiElements[id].def)
+                        .appendTo(this._container)
+                        .typedInput({types: types})
+                        .typedInput('width',width)
+                        .typedInput('type',type)
+                        .typedInput('value',value);
+
+                    element.prop('_lastSelectedValue',value);
+
+                    if (typeof change === "function") {
+                        element.on('change',change);
+                    }
+                }
+                this.addSelect = function(id,choices,value, width = contentWidth, valueType = "string", props = {}) {
+                    let def = {
+                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
+                        style: `width:${width};`,
+                        type: 'select',
+                        valueType
+                    }
+                    Object.keys(props).forEach(key => def[key] = props[key]);
+                    this._lastId = id;
+                    if (this.uiElements[id]===undefined) this.uiElements[id]={id,def:def};
+                    let element = $('<select/>', def).appendTo(this._container);
+                    choices.forEach( (item,index) => {
+                        switch (typeof item) { 
+                            case 'string': 
+                                element.append($('<option></option>').val(item).text(item)); 
+                                break;
+                            case 'object': 
+                                if (item.hasOwnProperty('i18n')) {
+                                    element.append($('<option></option>')
+                                        .val((item.value!==undefined) ? item.value : node._(this.root+'.'+this.id+'.select.'+item.i18n+'.'+index))
+                                        .text(node._(this.root+'.'+this.id+'.select.'+item.i18n+'.'+index))); 
+                                    break;
+                                }
+                                if (item.hasOwnProperty('text')) {
+                                    element.append($('<option></option>').val(item.value).text(item.text)); 
+                                    break;
+                                }
+                                break;
+                        }
+                    })
+                    if (value !==undefined) {
+                        element.val(value);
+                    } else if (choices[0] !== undefined) {
+                        if (typeof choices[0] === 'string') {
+                            element.val(choices[0]);
+                        } else {
+                            element.val(choices[0].value);
+                        }
+                    }
+                    this.uiElements[id].element = element;
+                    return element;
+                };
+                this.addElement = function(type) {
+                    switch (type) {
+                        case 'br': $('<br>').appendTo(this._container); break;
+                        case 'hr': $('<hr>').appendTo(this._container); break;
+                    }  
+                };
+                this.addButton = function(id,label, width = contentWidth, onEvent = "click", event = null) {
+                    let button = $(`<a id="node-button-${this.id}-${id}" class="red-ui-button">${node._(this.root+"."+this.id+".label."+label)}</a>`).css('width',width);
+                    if (event!== null) {
+                        button.on(onEvent,( () => { 
+                            event(button);
+                        }))
+                    }
+                    button.appendTo(this._container);
+                }
+                this.setInput = function(id,value) {
+                    let input = $(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
+                    if (input.length>0) { // input or typed input
+                        if (input[0].className.search('typedInput') > 0) {
+                            input.typedInput('value',value);
+                        } else {
+                            input.val(value);    
+                        }
+                    } else { // button (via id)
+                        input = $(`#node-button-${this.id}-${id.replaceAll('.','-')}`);
+                        input[0].innerHTML = value;
+                    }
+                }
+                this.addProp = function (id,prop,value) {
+                    $(`.node-input-${this.id}-${id.replaceAll('.','-')}`).prop(prop,value);
+                };
+                this.getValue = function(id,value) {
+                    var elements = this.uiElements;
+                    var node = this;
+                    var result;
+                    Object.keys(elements).forEach( key => {
+                        if (key===id) {
+                            let type = elements[key].def.type;
+                            if (elements[key].typedInput) type = 'typedInput';
+                            switch (type) {
+                                case 'select':
+                                    // console.log(cssKey,element.find(cssKey).val());
+                                    result = elements[key].element.val()
+                                    if (elements[key].def.valueType) {
+                                        switch (elements[key].def.valueType){
+                                            case 'integer':
+                                                result = parseInt(result);
+                                                break;
+                                        }
+                                    }
+                                    setProperty(value,key,result);
+                                    break;
+                                case 'text':
+                                    result = setProperty(value,key,elements[key].element.val());
+                                    if (elements[key].def.hasOwnProperty('types')) {
+                                        switch (elements[key].element.typedInput('type')) {
+                                            case 'json': setProperty(value,key,JSON.parse(result)); break;
+                                            case 'num':  setProperty(value,key,Number(result)); break;
+                                            case 'bool': setProperty(value,key,(result=='true') ? true : false); break;
+                                        };
+                                    }
+                                    return;
+                                case 'typedInput':
+                                    result = elements[key].element.typedInput('value');
+                                    let typedValue = elements[key].element.typedInput('value');
+                                    switch (elements[key].element.typedInput('type')) {
+                                        case 'global':
+                                        case 'flow':
+                                            result = {context : elements[key].element.typedInput('type'),typedValue}
+                                            result.value = typedValue.slice(typedValue.lastIndexOf(':')+1);
+                                            result.store = typedValue.slice(typedValue.indexOf('(')+1,typedValue.indexOf(')'));
+                                            break;
+                                        case 'json':
+                                            result=JSON.parse(typedValue);
+                                            break;
+                                    }
+                                    setProperty(value,key,result);
+                                    return;
+                            }   
+                        }
+                    });
+                };
+                this.save = function (values, saveAll = true, valueFilter = []) {
+                    if (values===undefined) values = [];
+                    var components = $(`#node-input-${this.id}-container`).editableList('items');
+                    var node = this;
+                    var elements = this.uiElements;
+                    values.length = 0;
+                    components.each(function (i) {
+                        var element = $(this);
+                        var c = {};
+                        var result;
+                        Object.keys(elements).forEach( key => {
+                            let keys = key.split('.');
+                            let lastKey = keys[keys.length-1];
+                            let cssKey = `.node-input-${node.id}-${key.replaceAll('.','-')}`;
+                            let visible = element.find(cssKey).parent().css('display') !== 'none';
+                            if (visible || saveAll) {
+                                switch (elements[key].def.type) {
+                                    case 'select':
+                                        // console.log(cssKey,element.find(cssKey).val());
+                                        result = element.find(cssKey).val()
+                                        if (elements[key].def.valueType) {
+                                            switch (elements[key].def.valueType){
+                                                case 'integer':
+                                                    // console.log(cssKey,result);
+                                                    result = parseInt(result) || 0;
+                                                    break;
+                                            }
+                                        }
+                                        setProperty(c,key,result);
+                                        break;
+                                    case 'text':
+                                        result = setProperty(c,key,element.find(cssKey).val());
+                                        if (elements[key].def.hasOwnProperty('types')) {
+                                            // console.log('text',element.find(cssKey).typedInput('type'),result);
+                                            switch (element.find(cssKey).typedInput('type')) {
+                                                case 'json': setProperty(c,key,JSON.parse(result)); break;
+                                                case 'num':  setProperty(c,key,Number(result)); break;
+                                                case 'bool': setProperty(c,key,(result=='true') ? true : false); break;
+                                                case 'allSeries': setProperty(c,key,""); break;
+                                                case 'selected': setProperty(c,key,(result==='')? result : result.split(',')); break;
+                                            };
+                                        }
+                                        break;
+                                    case 'number':
+                                        if (!key.includes('Alpha')) { // all except Alpha as it's included in RGBA Colors
+                                            setProperty(c,key,Number(element.find(cssKey).val()));
+                                        }
+                                        break;
+                                    case 'checkbox':
+                                        setProperty(c,key,element.find(cssKey).prop('checked'));
+                                        break;
+                                    case 'color':
+                                        let id = key.substring(0,key.search('Color')).replaceAll('.','-');
+                                        let property = key.substring(0,key.search('Color'));
+                                        setProperty(c,property,HEXtoRGB(
+                                            element.find(`.node-input-${node.id}-${id}`+"Color").val(),
+                                            element.find(`.node-input-${node.id}-${id}`+"Alpha").val()
+                                        ));
+                                        break;
+                                    case 'typedInput': // only arrays!
+                                        xonsole.log("typedInput",element.find(cssKey).val())
+                                        result = setProperty(c,key,JSON.parse(element.find(cssKey).val()));
+                                        if (!Array.isArray(result)) setProperty(c,key,[]);
+                                        break;
+                                }
+                            }
+                        });
+                        values.push(c);
+                    });
+                }
+            };
+
+            node.uiListElements = {
+                main : new UiElements("uplot","main"),
+                default : new UiElements("uplot","default"),
+                series : new UiElements("uplot","series"),
+                axes : new UiElements("uplot","axes"),
+                scales : new UiElements("uplot","scales"),
+                plugins : new UiElements("uplot","plugins"),
+                dataPlugins : new UiElements("uplot","dataPlugins"),
+            }
+            if (!this.series) this.series = [];
+            if (!this.axes) this.axes=[];
+            if (!this.scales) this.scales=[];
+            if (!this.plugins) this.plugins=[];
+            if (!this.dataPlugins) this.dataPlugins=[];
+
+            let mainContainer = node.uiListElements.main.setRow($('#node-tab-general'));
+            mainContainer.setGroup('appearance',true, 'form-row');
+                mainContainer.addClassicLabel('title');
+                mainContainer.addInput('title','text',this.title,contentWidth+'%','title');
+            mainContainer.closeGroup();
+            mainContainer.setGroup('appearance',true, 'form-row');
+                mainContainer.addClassicLabel('name');
+                mainContainer.addInput('name','text',this.name,contentWidth+'%','name');
+            mainContainer.closeGroup();
+            mainContainer.setGroup('appearance',true, 'form-row');
+                mainContainer.addClassicLabel('spaceForTitle');
+                mainContainer.addInput('spaceForTitle',{type:'number',min:0,max:200},this.spaceForTitle || 50,contentWidth/2+'%','spaceForTitle');
+                mainContainer.addClassicLabel('px');
+            mainContainer.closeGroup();
+            mainContainer.setGroup('appearance',true, 'form-row');
+                mainContainer.addClassicLabel('spaceForLegend');
+                mainContainer.addInput('spaceForLegend',{type:'number',min:0,max:200},this.spaceForLegend || 50,contentWidth/2+'%','spaceForLegend');
+                mainContainer.addClassicLabel('px');
+            mainContainer.closeGroup();
+            mainContainer.setGroup('debug',true, 'form-row');
+                mainContainer.addClassicLabel('title');
+                mainContainer.addInput('debugServer',{type:'checkbox',checked: (this.debugServer!==undefined) ? this.debugServer : false},undefined,'5%','debugServer')
+                mainContainer.addClassicLabel('debugServer');
+                mainContainer.addInput('debugClient',{type:'checkbox',checked: (this.debugClient!==undefined) ? this.debugClient : false},undefined,'5%','debugClient')
+                mainContainer.addClassicLabel('debugClient');
+            mainContainer.closeGroup();
+
+
+
+            $('#node-input-series-container')
+            .css('min-height','250px').css('min-width','400px')
+            .editableList({
+                sortable: true,
+                removable: true,
+                addButton: true,
+                addItem: function(row, index, data) {
+                    if (!data) data={};
+
+                    // get latest scales
+                    let tempScales = [];
+                    let scaleIds = [];
+                    try {
+                        node.uiListElements.scales.save(tempScales,true,["id"]);
+                    } catch (err) {
+                        tempScales = node.scales;
+                    }
+                    scaleIds = tempScales.map(item => item.id);
+
+                    var uiElements = node.uiListElements.series.setRow(row);
+                    // console.log('series before',data);
+
+                    uiElements.addLabel('topic');
+                    uiElements.addInput('topic','text',data.topic || '',contentWidth+'%');
+                    uiElements.addProp('topic','disabled',data.topicReadOnly);
+
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('label');
+                    uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('scale',contentWidth/4-5+'%');
+                    uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');                    
+                    uiElements.addElement('br');
+
+                    //strokeColor
+                    uiElements.addLabel('stroke');
+                    uiElements.addLabel('color',contentWidth/4-5+'%');
+                    uiElements.addInput('strokeColor','color',RGBtoHEX(data.stroke || defaultSeries.stroke,'HEX'),contentWidth/4-5+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                    uiElements.addInput('strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.stroke || defaultSeries.stroke,'ALPHA100'),contentWidth/4+5+'%')
+                    uiElements.addLabel('%','5%');
+                    uiElements.addElement('br');
+                    
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addLabel('width',contentWidth/4-5+'%');
+                    uiElements.addInput('width',{type:'number',min:0,max:100},data.width || defaultSeries.width,contentWidth/4-5+'%')
+                    uiElements.addLabel('px','5%');
+                    
+                    uiElements.addLabel('dash',contentWidth/4-5+'%');
+                    let dash = (data.dash!==undefined) ? JSON.stringify(data.dash) : JSON.stringify(defaultSeries.dash);
+                    // uiElements.addInput('dash','text',dash,contentWidth/4+'%');
+                    uiElements.addTypedInput('dash',["json"],dash,'json',contentWidth/4+5+'%');
+                    uiElements.addElement('br');
+
+                    const interpolationOptions=["linear", "points", "spline", "stepBefore", "stepAfter", "bars"];
+                    let interpolation =[];
+                    interpolationOptions.forEach(option => { 
+                        let item = {i18n:'path'};
+                        item.value= option;
+                        interpolation.push(item);
+                    });
+                    uiElements.addLabel('path');
+                    uiElements.addSelect('path',interpolation,data.path,contentWidth+'%');
+
+
+                    //fillColor
+                    uiElements.addLabel('fill');
+                    uiElements.addLabel('color',contentWidth/4-5+'%');
+                    uiElements.addInput('fillColor','color',RGBtoHEX(data.fill || defaultSeries.fill,'HEX'),contentWidth/4-5+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                    uiElements.addInput('fillAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.fill || defaultSeries.fill,'ALPHA100'),contentWidth/4+5+'%')
+                    uiElements.addLabel('%','5%');
+                    uiElements.addElement('br');
+                    
+                    //Options
+                    uiElements.addLabel('options');
+                    uiElements.addInput('spanGaps',{type:'checkbox',checked: (data.spanGaps!==undefined) ? data.spanGaps : defaultSeries.spanGaps},undefined,'5%')
+                    uiElements.addLabel('spanGaps',contentWidth/3-5+'%');
+                    uiElements.addInput('show',{type:'checkbox',checked: (data.show!==undefined) ? data.show : defaultSeries.show},undefined,'5%')
+                    uiElements.addLabel('show',contentWidth/3-5+'%');
+                    uiElements.addInput('forward',{type:'checkbox',checked: (data.forward!==undefined) ? data.forward : defaultSeries.forward},undefined,'5%')
+                    uiElements.addLabel('forward',contentWidth/3-5+'%');
+                }
+            });
+            $("#node-input-series-container").editableList('addItems', this.series);
+
+            let axesContainer = node.uiListElements.default.setRow($('#node-input-axes-top'));
+            axesContainer.addLabel('xaxes');
+            if (!this.axesX) this.axesX = defaultAxesX;
+            axesContainer.addButton('24h','24h','10%','click',(button => {
+                    axesContainer.setInput('24h','<i class="fa fa-spinner fa-spin">');
+                    uplotGetConfig(node,'axesX','24h',(data => {
+                        axesContainer.setInput('axesX',JSON.stringify(data));
+                        axesContainer.setInput('24h','24h');
+                    }));
+                })
+            );
+            axesContainer.addButton('12h','12h','10%','click',(button => {
+                    axesContainer.setInput('12h','<i class="fa fa-spinner fa-spin">');
+                    uplotGetConfig(node,'axesX','12h',(data => {
+                        axesContainer.setInput('axesX',JSON.stringify(data));
+                        axesContainer.setInput('12h','12h');
+                    }));
+                })
+            );
+            axesContainer.addTypedInput('axesX',["json"],JSON.stringify(this.axesX),'json',(contentWidth-25)+'%');
+
+
+            $('#node-input-axes-container')
+            .css('min-height','250px').css('min-width','400px')
+            .editableList({
+                sortable: true,
+                removable: true,
+                addButton: true,
+                addItem: function(row, index, data) {
+                    if (!data) data={};
+                    if (!data.grid) data.grid={};
+                    if (!data.ticks) data.ticks={};
+
+                    let tempScales = [];
+                    let scaleIds = [];
+                    try {
+                        node.uiListElements.scales.save(tempScales);
+                    } catch (err) {
+                        tempScales = node.scales;
+                    }
+                    scaleIds = tempScales.map(item => item.id);
+
+                    var uiElements = node.uiListElements.axes.setRow(row);
+
+                    uiElements.addLabel('label');
+                    uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('scale',contentWidth/4-5+'%');
+                    uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');
+
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addLabel('color',contentWidth/4-5+'%');
+                    uiElements.addInput('strokeColor','color',RGBtoHEX(data.stroke || defaultAxes.stroke,'HEX'),contentWidth/4-5+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                    uiElements.addInput('strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.stroke || defaultAxes.stroke,'ALPHA100'),contentWidth/4+5+'%')
+                    uiElements.addLabel('%','5%');
+                    uiElements.addElement('br');
+                    
+                    //side
+                    let side = [0,1,2].map(value =>{return {i18n:'side',value}});
+                    uiElements.addLabel('side');
+                    uiElements.addSelect('side',side,data.side,contentWidth/2+'%','integer');
+                    uiElements.addElement('br');
+
+                    // grid
+                    uiElements.addLabel('grid');
+                    uiElements.addLabel('color',contentWidth/4-5+'%');
+                    uiElements.addInput('grid.strokeColor','color',RGBtoHEX(data.grid.stroke || defaultAxes.grid.stroke,'HEX'),contentWidth/4-5+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                    uiElements.addInput('grid.strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.grid.stroke || defaultAxes.grid.stroke,'ALPHA100'),contentWidth/4+5+'%')
+                    uiElements.addLabel('%','5%');
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addLabel('width',contentWidth/4-5+'%');
+                    uiElements.addInput('grid.width',{type:'number',min:0,max:100},data.grid.width || defaultAxes.grid.width,contentWidth/4-5+'%')
+                    uiElements.addLabel('px','5%');
+                    uiElements.addLabel('dash',contentWidth/4-5+'%');
+                    let gridDash = (data.grid.dash!==undefined) ? JSON.stringify(data.grid.dash) : JSON.stringify(defaultAxes.grid.dash);
+                    uiElements.addTypedInput('grid.dash',["json"],gridDash,'json',contentWidth/4+5+'%');
+                    uiElements.addElement('br');
+                    
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addInput('grid.show',{type:'checkbox',checked: (data.grid.show!==undefined) ? data.grid.show : defaultAxes.grid.show},undefined,'5%')
+                    uiElements.addLabel('show',contentWidth/3-5+'%');
+                    uiElements.addElement('br');
+                    // ticks
+                    uiElements.addLabel('ticks');
+                    uiElements.addLabel('color',contentWidth/4-5+'%');
+                    uiElements.addInput('ticks.strokeColor','color',RGBtoHEX(data.ticks.stroke || defaultAxes.ticks.stroke,'HEX'),contentWidth/4-5+'%');
+                    uiElements.addLabel('&nbsp;','5%');
+                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                    uiElements.addInput('ticks.strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.ticks.stroke || defaultAxes.ticks.stroke,'ALPHA100'),contentWidth/4+5+'%')
+                    uiElements.addLabel('%','5%');
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addLabel('width',contentWidth/4-5+'%');
+                    uiElements.addInput('ticks.width',{type:'number',min:0,max:100},data.ticks.width || defaultAxes.ticks.width,contentWidth/4-5+'%')
+                    uiElements.addLabel('px','5%');
+                    uiElements.addLabel('dash',contentWidth/4-5+'%');
+                    let ticksDash = (data.ticks.dash!==undefined) ? JSON.stringify(data.ticks.dash) : JSON.stringify(defaultAxes.ticks.dash);
+                    uiElements.addTypedInput('ticks.dash',["json"],ticksDash,'json',contentWidth/4+5+'%');
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('&nbsp;');
+                    uiElements.addInput('ticks.show',{type:'checkbox',checked: (data.ticks.show!==undefined) ? data.ticks.show : defaultAxes.ticks.show},undefined,'5%')
+                    uiElements.addLabel('show',contentWidth/3-5+'%');
+                }
+            });
+            $("#node-input-axes-container").editableList('addItems', this.axes);
+
+            $('#node-input-scales-container')
+            .css('min-height','250px').css('min-width','400px')
+            .editableList({
+                sortable: true,
+                removable: true,
+                addButton: true,
+                addItem: function(row, index, data) {
+                    if (!data) data={};
+                    var uiElements = node.uiListElements.scales.setRow(row);
+
+                    uiElements.addLabel('id');
+                    uiElements.addInput('id','text',data.id || '', contentWidth+'%');
+                    uiElements.addElement('br');
+                    uiElements.addLabel('name');
+                    uiElements.addInput('name','text', data.name || '', contentWidth+'%');
+                    uiElements.addElement('br');
+
+                    uiElements.addLabel('range');
+                    uiElements.addInput('auto',{type:'checkbox',checked: (data.auto!==undefined) ? data.auto : true},undefined,'5%')
+                    uiElements.addLabel('auto','15%');
+                    uiElements.addLabel('min',contentWidth/4-10+'%');
+                    uiElements.addInput('min',{type:'number'},data.min || 0,contentWidth/4+'%'),
+                    uiElements.addLabel('max',contentWidth/4-10+'%');
+                    uiElements.addInput('max',{type:'number'},data.max || 100,contentWidth/4+'%'),
+                    uiElements.addElement('br');
+
+                }
+            });
+            $("#node-input-scales-container").editableList('addItems', this.scales);
+
+            //console.log(RED.settings.context.stores);
+
+            if (!this.dataStore || !RED.settings.context.stores.includes(this.dataStore.store)) {
+                this.dataStore.store = RED.settings.context.default;
+            }
+            let dataStores = RED.settings.context.stores || ["default"];
+            let dataContainer = node.uiListElements.default.setRow($('#node-input-data-top'));
+        
+            dataContainer.addLabel('store');
+            dataContainer.addTypedInput('dataStore',[{value:"store",label:"node",options:dataStores},"flow","global"],(this.dataStore.typedValue) ? this.dataStore.typedValue : this.dataStore.store,this.dataStore.context,(contentWidth-40)+'%');
+            dataContainer.addButton('erase','erase','15%','click',(button => {
+                dataContainer.setInput('erase','<i class="fa fa-spinner fa-spin">');
+                var myNotification = RED.notify(node._("uplot.dialogs.erase.text"),{
+                    modal: true,
+                    fixed: true,
+                    type: 'warning', // can be null, 'compact', 'success', 'warning', 'error'
+                    buttons: [
+                        {
+                            text: node._("uplot.dialogs.erase.button.0"),
+                            click: function(e) {
+                                myNotification.close();
+                                dataContainer.setInput('erase','erase');
+                            }
+                        },
+                        {
+                            text: node._("uplot.dialogs.erase.button.1"),
+                            class:"primary",
+                            click: function(e) {
+                                myNotification.close();
+                                uplotGetConfig(node,'eraseData','all',(data => {
+                                    if (data==='ok') {
+                                        dataContainer.setInput('erase','erase');
+                                    } else {
+                                        dataContainer.setInput('erase',data);
+                                    }
+                                }));
+                            }
+                        }
+                    ]
+                });
+            }));
+            dataContainer.addButton('info','info','10%','click',(button => {
+                uplotGetConfig(node,'getSizes','',(data => {
+                    var myNotification = RED.notify(node._("uplot.dialogs.info.text")+"<br><pre>"+JSON.stringify(data, null, 2)+"</pre>",{
+                        modal: true,
+                        fixed: true,
+                        type: null, // can be null, 'compact', 'success', 'warning', 'error'
+                        buttons: [
+                            {
+                                text: node._("uplot.dialogs.info.button.0"),
+                                click: function(e) {
+                                    myNotification.close();
+                                }
+                            }
+                        ]
+                    });
+                }));
+            }));
+            dataContainer.addButton('clean','clean','10%','click',(button => {
+                uplotGetConfig(node,'clean','',(data => {
+                    var myNotification = RED.notify(node._("uplot.dialogs.clean.text")+"<br><hr>"+data+"<hr>",{
+                        modal: true,
+                        fixed: true,
+                        type: null, // can be null, 'compact', 'success', 'warning', 'error'
+                        buttons: [
+                            {
+                                text: node._("uplot.dialogs.clean.button.0"),
+                                click: function(e) {
+                                    myNotification.close();
+                                }
+                            }
+                        ]
+                    });
+                }));
+            }));
+
+            $('#node-input-dataPlugins-container')
+            .css('min-height','250px').css('min-width','400px')
+            .editableList({
+                sortable: true,
+                removable: true,
+                addButton: true,
+                addItem: function(row, index, data) {
+                    if (!data) data={};
+                    var uiElements = node.uiListElements.dataPlugins.setRow(row);
+
+                    // plugin dropdown
+                    const maxDataPlugins = 5;
+                    const dataPlugins = ['none','limitTime','limitColumns','reduceData','timePrecision','cleanTable']
+                    let options = dataPlugins.map(value => {return {i18n:'plugins',value}});
+                    uiElements.addLabel('plugin');
+                    let pluginElement = uiElements.addSelect('plugin',options,data.plugin || 'none',contentWidth-20+'%');
+                    uiElements.addEvent('change',(function (element) {
+                        uiElements.setGroupVisibility(element,'plugins',element.val());
+                    }))
+                    uiElements.addInput('enabled',{type:'checkbox',checked: (data.enabled!==undefined) ? data.enabled : true},undefined,'5%');
+                    uiElements.addLabel('enabled','15%');
+                    
+                    let timePeriods =[]; // seconds ... weeks
+                    for (let i = 0; i < 5; i++) { timePeriods.push({i18n:'period',value: node._("uplot.dataPlugins.select.periods."+i)}) };
+                    let timePeriodsClean =[{text:node._("uplot.dataPlugins.label.messages"), value: 0}]; // messages,seconds,minutes ... month
+                    for (let i = 0; i < 6; i++) { timePeriodsClean.push({text:node._("uplot.dataPlugins.select.period."+i), value: node._("uplot.dataPlugins.select.periods."+i)}) };
+                    let timePeriodsMonth =[]; // seconds ... month
+                    for (let i = 0; i < 6; i++) { timePeriodsMonth.push({i18n:'period',value: node._("uplot.dataPlugins.select.periods."+i)}) };
+                    let timePeriodsYears =[]; // seconds ... years
+                    for (let i = 0; i < 7; i++) { timePeriodsYears.push({i18n:'period',value: node._("uplot.dataPlugins.select.periods."+i)}) };
+
+                    // get rows
+                    let tempSeries = [];
+                    try {
+                        node.uiListElements.series.save(tempSeries,true,["topic","label"]);
+                    } catch (err) {
+                        tempSeries = node.series;
+                    }
+                    let seriesSelect = tempSeries.map(item => { return {value:item.topic, label:item.label, title:item.topic, multiple:true}});
+                    // seriesSelect.unshift({value:"", label:node._("uplot.dataPlugins.label.reduceData.allSeries"), title:node._("uplot.dataPlugins.label.reduceData.allSeries"), multiple:false});
+
+                    uiElements.setGroup('plugins',true); // options container
+                        // limit time
+                        uiElements.setGroup('limitTime',false);
+                            uiElements.addLabel('limit');
+                            uiElements.addLabel('last',contentWidth/4-5+'%');
+                            uiElements.addInput('last',{type:'number',min:1},data.last || 1,contentWidth/4+5+'%');
+                            uiElements.addSelect('period',timePeriodsYears,data.period || 3600,contentWidth/2+'%','integer');
+                            uiElements.addElement('br');
+                            
+                            uiElements.addLabel('every');
+                            uiElements.addInput('limitTimeEvery',{type:'number',min:1},data.limitTimeEvery || 1,contentWidth/2+'%');
+                            uiElements.addSelect('limitTimePeriods',timePeriodsClean,data.limitTimePeriods || 3600,contentWidth/2+'%','integer');
+                            uiElements.addElement('br');
+                            uiElements.addLabel('client');
+                            uiElements.addLabel('check',contentWidth/2+'%');
+                            uiElements.addInput('checkEvery',{type:'number',min:0},data.checkEvery || 0,contentWidth/2-10+'%');
+                            uiElements.addLabel('seconds',"10%");                        
+                        uiElements.closeGroup();
+                        // limit columns
+                        uiElements.setGroup('limitColumns',false);
+                            uiElements.addLabel('columns');
+                            uiElements.addInput('columns',{type:'number',min:1},data.columns || 10000,contentWidth+'%'),
+                            uiElements.addElement('br');
+
+                            uiElements.addLabel('every');
+                            uiElements.addInput('limitColumnsEvery',{type:'number',min:1},data.limitColumnsEvery || 1,contentWidth/2+'%');
+                            uiElements.addSelect('limitColumnsPeriods',timePeriodsClean,(data.limitColumnsPeriods!==undefined) ? data.limitColumnsPeriods : 3600,contentWidth/2+'%','integer');                            
+                            uiElements.addElement('br');
+                            
+                            uiElements.addLabel('client');
+                            uiElements.addLabel('check',contentWidth/2+'%');
+                            uiElements.addInput('checkEvery',{type:'number',min:0},data.checkEvery || 0,contentWidth/2-10+'%');
+                            uiElements.addLabel('seconds',"10%");
+
+                        uiElements.closeGroup();
+                        // precision
+                        uiElements.setGroup('timePrecision',false);
+                            uiElements.addLabel('precision');
+                            uiElements.addInput('timePrecision',{type:'number',min:1},data.timePrecision || 1,contentWidth/2+'%'),
+                            uiElements.addLabel('milliseconds',contentWidth/2+'%');
+                        uiElements.closeGroup();
+                        // reduce data
+                        uiElements.setGroup('reduceData',false);
+                            uiElements.addLabel('older');
+                            uiElements.addInput('older',{type:'number',min:1},data.older || 1,contentWidth/2+'%');
+                            uiElements.addSelect('threshold',timePeriodsYears,data.threshold || 86400,contentWidth/2+'%','integer');
+                            uiElements.addElement('br');
+                            uiElements.addLabel('period');
+                            uiElements.addInput('span',{type:'number',min:1},data.span || 1,contentWidth/2+'%');
+                            uiElements.addSelect('periods',timePeriodsMonth,data.periods || 60,contentWidth/2+'%','integer');
+                            uiElements.addElement('br');
+                            uiElements.addLabel('applyTo');
+                            // uiElements.addSelect('applyTo',seriesSelect,data.apply || "",contentWidth+'%','array',{multiple : true, size : 3});
+                            
+                            if (data.applyTo === undefined) data.applyTo="";
+                            uiElements.addTypedInput('applyTo',[{
+                                value: "allSeries",
+                                label: node._("uplot.dataPlugins.label.reduceData.allSeries"),
+                                title: node._("uplot.dataPlugins.label.reduceData.allSeries"),
+                                icon: "fa fa-bars",
+                                hasValue: false
+                            },{
+                                value: "selected",
+                                label:  node._("uplot.dataPlugins.label.reduceData.selectedSeries"), 
+                                title:  node._("uplot.dataPlugins.label.reduceData.selectedSeries"), 
+                                icon: "fa fa-list-ul",
+                                showLabel: false,
+                                multiple: true,
+                                options: seriesSelect                        
+                            }],
+                                data.applyTo,
+                                (data.applyTo === '') ? 'allSeries' : 'selected',
+                                contentWidth-2+'%',
+                                (event, type, value) => {
+                                    let element = $(event.target);
+                                    let lastSelected = element.prop('_lastSelectedValue');
+                                    // console.log('change event', {event, type, value, lastSelected})
+                                    switch (type) {
+                                        case 'selected': 
+                                            if (lastSelected && value!==lastSelected) { 
+                                                element.typedInput('value', lastSelected);
+                                            }
+                                            element.prop('_lastSelectedValue',value);
+                                            break;
+                                    }
+                                }
+                            );
+    
+                            uiElements.addElement('br');
+
+                            let methods =[];
+                            for (let i = 0; i < 4; i++) { 
+                                methods.push({i18n:'methods'})
+                            };
+                            uiElements.addLabel('method');
+                            uiElements.addSelect('method',methods,data.method || 0,contentWidth+'%');
+                            uiElements.addElement('br');
+
+                            uiElements.addLabel('resultAt');
+                            let resultsAt =[]; 
+                            for (let i = 0; i < 4; i++) { resultsAt.push({i18n:'resultsAt',value: i}) };
+                            uiElements.addSelect('resultAt',resultsAt,(data.resultAt!==undefined)? data.resultAt : 2,contentWidth+'%','integer');
+
+                        uiElements.closeGroup();
+                        // cleanTable
+                        uiElements.setGroup('cleanTable',false);
+                            uiElements.addLabel('clean');
+                            uiElements.addLabel('every',contentWidth/4-5+'%');
+                            uiElements.addInput('cleanEvery',{type:'number',min:1},data.cleanEvery || 1,contentWidth/4+5+'%');
+                            uiElements.addSelect('cleanPeriod',timePeriodsClean,data.cleanPeriod || 3600,contentWidth/2+'%','integer');
+                        uiElements.closeGroup();
+                    uiElements.closeGroup();
+                    
+                    uiElements.setGroupVisibility(pluginElement,'plugins',data.plugin || 'none');
+                }
+            });
+            $("#node-input-dataPlugins-container").editableList('addItems', this.dataPlugins);
+
+            $('#node-input-plugins-container')
+            .css('min-height','250px').css('min-width','400px')
+            .editableList({
+                sortable: true,
+                removable: true,
+                addButton: true,
+                addItem: function(row, index, data) {
+                    if (!data) data={};
+                    var uiElements = node.uiListElements.plugins.setRow(row);
+
+                    // plugin dropdown
+                    const maxPlugins =6;
+                    const plugins = ['none','bands','keepZoomLevelPlugin','wheelPanZoomPlugin','touchZoomPlugin','columnHighlightPlugin','legendAsTooltipPlugin']
+                    let options =[];
+                    for (let i = 0; i <= maxPlugins; i++) { 
+                        options.push({i18n:'plugins',value: plugins[i]})
+                    };
+                    let defaultZoomPeriods =[]; // seconds ... years
+                    for (let i = 0; i < 7; i++) { defaultZoomPeriods.push({i18n:'period',value: node._("uplot.plugins.select.periods."+i)}) };
+
+                    uiElements.addLabel('plugin');
+                    let pluginElement = uiElements.addSelect('plugin',options,data.plugin || 'none',contentWidth-20+'%');
+                    uiElements.addEvent('change',(function (element) {
+                        uiElements.setGroupVisibility(element,'plugins',element.val());
+                    }))
+                    uiElements.addInput('enabled',{type:'checkbox',checked: (data.enabled!==undefined) ? data.enabled : true},undefined,'5%');
+                    uiElements.addLabel('enabled','15%');
+
+                    uiElements.setGroup('plugins',true); // options container
+                        // bands plugin
+                        uiElements.setGroup('bands',false);
+                            let topics =[];
+                            node.series.forEach(item => { topics.push(item.topic) });
+                            uiElements.addLabel('low');
+                            uiElements.addSelect('from',topics,data.from,contentWidth+'%');
+                            uiElements.addElement('br');
+                            
+                            uiElements.addLabel('high');
+                            uiElements.addSelect('to',topics,data.to,contentWidth+'%');
+                            uiElements.addElement('br');
+
+                            uiElements.addLabel('band');
+                            uiElements.addLabel('color',contentWidth/4-5+'%');
+                            uiElements.addInput('fillColor','color',RGBtoHEX(data.fill || defaultSeries.fill,'HEX'),contentWidth/4-5+'%');
+                            uiElements.addLabel('&nbsp;','5%');
+                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                            uiElements.addInput('fillAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.fill || defaultSeries.fill,'ALPHA100'),contentWidth/4+5+'%')
+                            uiElements.addLabel('%','5%');
+                        uiElements.closeGroup();
+                        // keep zoom level
+                        uiElements.setGroup('keepZoomLevelPlugin',false);
+                            uiElements.addLabel('&nbsp;');
+                            uiElements.addInput('panWithData',{type:'checkbox',checked: (data.panWithData!==undefined) ? data.panWithData : true},undefined,'5%');
+                            uiElements.addLabel('panWithData',contentWidth-5+'%');
+                            uiElements.addElement('br');
+                            uiElements.addLabel('defaultX');
+                            uiElements.addLabel('defaultZoom',contentWidth/4-5+'%');
+                            uiElements.addInput('defaultZoom',{type:'number',min:1},data.defaultZoom || 1,contentWidth/4+5+'%');
+                            uiElements.addSelect('defaultZoomPeriod',defaultZoomPeriods,data.defaultZoomPeriod || 3600,contentWidth/2+'%','integer');
+                        uiElements.closeGroup();
+                        // wheel zoom and pan
+                        uiElements.setGroup('wheelPanZoomPlugin',false);
+                            uiElements.addLabel('zoom');
+                            uiElements.addLabel('factor',contentWidth/4-5+'%');
+                            uiElements.addInput('factor',{type:'number',min:0,max:10,step:0.05},data.factor || 0.75,contentWidth/4*3+5+'%'),
+                        uiElements.closeGroup();
+                        // touch zoom
+                        uiElements.setGroup('touchZoomPlugin',false);
+                            // no options to set here
+                        uiElements.closeGroup();
+                        // column-highlights the hovered x index
+                        uiElements.setGroup('columnHighlightPlugin',false);
+                            uiElements.addLabel('highlightColor');
+                            uiElements.addLabel('color',contentWidth/4-5+'%');
+                            uiElements.addInput('highlightColor','color',RGBtoHEX(data.highlight || "rgba(51,204,255,0.3)",'HEX'),contentWidth/4-5+'%');
+                            uiElements.addLabel('&nbsp;','5%');
+                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                            uiElements.addInput('highlightAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.highlight || "rgba(51,204,255,0.3)",'ALPHA100'),contentWidth/4+5+'%')
+                            uiElements.addLabel('%','5%');
+                        uiElements.closeGroup();
+                        // converts the legend into a simple tooltip
+                        uiElements.setGroup('legendAsTooltipPlugin',false);
+                            uiElements.addLabel('textColor');
+                            uiElements.addLabel('color',contentWidth/4-5+'%');
+                            uiElements.addInput('textColor','color',RGBtoHEX(data.text || "rgba(0, 0, 0, 1)",'HEX'),contentWidth/4-5+'%');
+                            uiElements.addLabel('&nbsp;','5%');
+                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                            uiElements.addInput('textAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.text || "rgba(255, 249, 196, 0.85)",'ALPHA100'),contentWidth/4+5+'%')
+                            uiElements.addLabel('%','5%');
+                            uiElements.addElement('br');
+
+                            uiElements.addLabel('backgroundColor');
+                            uiElements.addLabel('color',contentWidth/4-5+'%');
+                            uiElements.addInput('backgroundColor','color',RGBtoHEX(data.background || "rgba(255, 249, 196, 0.80)",'HEX'),contentWidth/4-5+'%');
+                            uiElements.addLabel('&nbsp;','5%');
+                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
+                            uiElements.addInput('backgroundAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.background || "rgba(255, 249, 196, 0.80)",'ALPHA100'),contentWidth/4+5+'%')
+                            uiElements.addLabel('%','5%');
+                        uiElements.closeGroup();
+                    uiElements.closeGroup();
+                    
+                    uiElements.setGroupVisibility(pluginElement,'plugins',data.plugin || 'none');
+                }
+            });
+            $("#node-input-plugins-container").editableList('addItems', this.plugins);
+
+            setTimeout(function() { node.tabs.resize();},0);
+        },
+        oneditsave: function() {
+            var node = this;
+            node.uiListElements.series.save(node.series);
+            if (node.axes===undefined) node.axes=[];
+            node.uiListElements.axes.save(node.axes);
+            if (node.scales===undefined) node.scales=[];
+            node.uiListElements.scales.save(node.scales);
+            if (node.plugins===undefined) node.plugins=[];
+            node.uiListElements.plugins.save(node.plugins, false); // save only visible properties
+            if (node.dataPlugins===undefined) node.dataPlugins=[];
+            node.uiListElements.dataPlugins.save(node.dataPlugins, false);
+            
+            //node.uiListElements.main.getValue('contextStore',node);
+            node.uiListElements.default.getValue('axesX',node);
+            node.uiListElements.default.getValue('dataStore',node);
+            if (typeof node.dataStore === 'string') {
+                node.dataStore={context:'node', store: node.dataStore};
+            }
+        },
+        oneditresize: function(size) {
+            // uplotResizeList();
+        }
+    });
+</script>
+
+
+<script type="text/html" data-template-name="ui_uplot-charts">
+
+    <div class="form-row" id="template-row-group">
+        <label for="node-input-group"><i class="fa fa-table"></i> <span data-i18n='uplot.label.group'></span></label>
+        <input type="text" id="node-input-group">
+    </div>
+
+    <div class="form-row" id="template-row-size">
+        <label><i class="fa fa-object-group"></i> <span data-i18n='iro-color.label.size'></span></label>
+        <input type="hidden" id="node-input-width">
+        <input type="hidden" id="node-input-height">
+        <button class="editor-button" id="node-input-size"></button>
+    </div>
+
+    <div class="form-row">
+        <ul style="min-width: 420px; margin-bottom: 20px;" id="node-uplot-config-tabs"></ul>
+    </div>
+
+    <div id="node-uplot-config-tabs-content" style="min-height: 170px;">
+        <div id="uplot-tab-main-0" style="display:none">
+            <div id="node-tab-general">
+            </div>
+        </div>
+        <div id="uplot-tab-main-1" style="display:none">
+            <div class="form-row node-input-series-container-row">
+                <label for="node-input-series-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.series'></span></label>
+                <ol id="node-input-series-container"></ol>
+            </div>
+        </div>
+        <div id="uplot-tab-main-2" style="display:none">
+            <div id="node-input-axes-top">
+            </div>
+            <div class="form-row node-input-axes-container-row">
+                <label for="node-input-axes-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.axes'></span></label>
+                <ol id="node-input-axes-container"></ol>
+            </div>
+        </div>
+        <div id="uplot-tab-main-3" style="display:none">
+            <div class="form-row node-input-scales-container-row">
+                <label for="node-input-scales-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.scales'></span></label>
+                <ol id="node-input-scales-container"></ol>
+            </div>
+        </div>
+        <div id="uplot-tab-main-4" style="display:none">
+            <div class="form-row node-input-plugins-container-row">
+                <label for="node-input-plugins-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.plugins'></span></label>
+                <ol id="node-input-plugins-container"></ol>
+            </div>
+        </div>
+        <div id="uplot-tab-main-5" style="display:none">
+            <div id="node-input-data-top">
+            </div>
+            <div class="form-row node-input-dataPlugins-container-row">
+                <label for="node-input-dataPlugins-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.dataPlugins'></span></label>
+                <ol id="node-input-dataPlugins-container"></ol>
+            </div>
+        </div>
+    </div>
+
+</script>

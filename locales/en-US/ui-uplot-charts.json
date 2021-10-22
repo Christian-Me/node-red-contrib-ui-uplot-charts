@@ -1,0 +1,297 @@
+{
+    "uplot" : {
+        "label" : {
+            "&nbsp;":"&nbsp",
+            "group" : "Group",
+            "name":"Name",
+            "series" : "Data series defined by topic (auto detected topics are read only)",
+            "scales" : "Data Scales",
+            "axes" : "Y-Axes to be attached to individual series",
+            "plugins" : "Extra features to be added",
+            "dataPlugins": "Rules for database maintenance",
+            "size" : "Size",
+            "title" : "Title",
+            "payload": "Payload",
+            "xAxis": "X-axis",
+            "last":"last",
+            "or":"OR",
+            "points":"points",
+            "check":"check",
+            "accuracy":"accuracy",
+            "ms":"ms",
+            "path": "Path",
+            "min": "Min",
+            "max": "Max",
+            "connect": "Connect",
+            "from": "From",
+            "to": "To",
+            "gap": "Gap",
+            "grid": "Grid",
+            "ticks": "Ticks"
+        },
+        "dataPlugins": {
+            "label" : {
+                "&nbsp;":"&nbsp",
+                "store": "Store",
+                "erase": "erase",
+                "clean": "clean",
+                "server": "server",
+                "client": "client",
+                "plugin": "Plugin",
+                "enabled": "Enabled",
+                "messages":"messages",
+                "limitTime":{
+                    "limit":"Limit",
+                    "last":"last",
+                    "every":"run every",
+                    "client":"Client",
+                    "check":"check every",
+                    "seconds":"seconds"
+                },
+                "limitColumns":{
+                    "columns":"Columns",
+                    "every":"run every",
+                    "client":"Client",
+                    "check":"check every",
+                    "seconds":"seconds"
+                },
+                "reduceData":{
+                    "older":"older than",
+                    "period":"Period",
+                    "applyTo":"Apply to",
+                    "method":"Method",
+                    "selectedSeries":"selected series",
+                    "allSeries": "all series",
+                    "resultAt": "Result @"
+                },
+                "timePrecision":{
+                    "precision":"Precision",
+                    "milliseconds":"milliseconds"
+                },
+                "cleanTable":{
+                    "clean":"Clean",
+                    "every":"every"
+                }
+            },
+            "select" : {
+                "plugins":["select a method","time period","max number of columns","reduce old data","time precision","clean table"],
+                "period":["seconds","minutes","hours","days","weeks","month","years"],
+                "periods":["1","60","3600","86400","604800","2678400","31536000"],
+                "methods":["average","minimum","maximum","sum"],
+                "resultsAt":["begin of period","end of period","mid of period", "mid of time period"]
+            }
+        },
+        "series" : {
+            "label" : {
+                "&nbsp;":"&nbsp",
+                "topic": "Topic",
+                "label": "Label",
+                "scale": "Scale",
+                "stroke": "Stroke",
+                "color": "Color",
+                "alpha": "Alpha",
+                "%":"%",
+                "width": "Width",
+                "px":"px",
+                "path": "Path",
+                "fill": "Fill",
+                "dash": "Pattern",
+                "options": "Options",
+                "spanGaps": "span gaps",
+                "show": "show",
+                "forward": "forward"
+            },
+            "placeholder":{
+                "topic":"unique identifier for this row",
+                "label":"label to show in legend"
+            },
+            "select" : {
+                "path":["Linear","Points only","Monotone Cubic Spline","Step before","Step after","Bars"]
+            }
+        },
+        "main" : {
+            "label" : {
+                "&nbsp;":"&nbsp;",
+                "verticalSpace": "Vertical",
+                "appearance":{
+                    "title":"Title",
+                    "name":"Name",
+                    "spaceForTitle":"Title",
+                    "spaceForLegend":"Legend",
+                    "px":"px"
+                },
+                "debug":{
+                    "&nbsp;":"&nbsp;",
+                    "title":"console.log",
+                    "debugServer":"backend",
+                    "debugClient":"frontend"
+                }
+            },
+            "placeholder":{
+                "appearance":{
+                    "title":"Title on top of chart",
+                    "name":"Name to label node in editor"
+                }
+            },
+            "select" : {
+                
+            }
+        },
+        "default" : {
+            "label" : {
+                "&nbsp;":"&nbsp;",
+                "xaxes": "X axes",
+                "24h": "24h",
+                "12h": "12h",
+                "store":"Store",
+                "erase":"erase",
+                "info": "<i class='fa fa-info-circle'></i>",
+                "clean": "<i class='fa fa-compress'></i>"
+            },
+            "select" : {
+                
+            }
+        },
+        "scales" : {
+            "label" : {
+                "&nbsp;":"&nbsp;",
+                "id":"Name",
+                "name":"Label",
+                "range":"Range",
+                "min":"Min",
+                "max":"Max",
+                "auto":"Auto"
+            },
+            "placeholder":{
+                "id":"unique scale id",
+                "name":"scale label"
+            },
+            "select" : {
+            }
+        },
+        "axes" : {
+            "label" : {
+                "&nbsp;":"&nbsp;",
+                "label": "Label",
+                "scale": "Scale",
+                "side":"Side",
+                "stroke": "Stroke",
+                "color": "Color",
+                "alpha": "Alpha",
+                "%":"%",
+                "grid": "Grid",
+                "ticks": "Ticks",
+                "width": "Width",
+                "px":"px",
+                "dash": "Pattern",
+                "options": "Options",
+                "show": "show",
+                "right": "right",
+                "increments": "Increments"
+            },
+            "select" : {
+                "side":["left","right","bottom"]
+            }
+        },
+        "plugins" : {
+            "label" : {
+                "&nbsp;":"&nbsp",
+                "plugin":"Plugin",
+                "enabled": "Enabled",
+                "bands":{
+                    "&nbsp;": "&nbsp;",
+                    "low": "Low",
+                    "high": "High",
+                    "band": "Band",
+                    "color": "Color",
+                    "alpha": "Alpha",
+                    "%":"%"
+                },
+                "keepZoomLevelPlugin":{
+                    "&nbsp;": "&nbsp;",
+                    "options": "Options",
+                    "panWithData": "Pan with incoming data",
+                    "defaultX": "Default",
+                    "defaultZoom": "zoom"
+                },
+                "wheelPanZoomPlugin":{
+                    "&nbsp;": "&nbsp;",
+                    "zoom": "Zoom",
+                    "factor": "Factor"
+                },
+                "touchZoomPlugin":{
+                    "&nbsp;": "&nbsp;"
+                },
+                "columnHighlightPlugin":{
+                    "&nbsp;": "&nbsp;",
+                    "highlightColor": "Highlight",
+                    "color":"Color",
+                    "alpha":"Alpha",
+                    "%":"%"
+                },
+                "legendAsTooltipPlugin":{
+                    "&nbsp;": "&nbsp;",
+                    "backgroundColor": "Background",
+                    "textColor": "Text",
+                    "color":"Color",
+                    "alpha":"Alpha",
+                    "%":"%"
+                }
+
+            },
+            "select" : {
+                "plugins":["select a plugin ...","Bands (fill between low and high values)","Keep Zoom and Pan","Wheel pan and zoom","Touch zoom","Highlight columns","Legend as Tooltip"],
+                "period":["seconds","minutes","hours","days","weeks","month","years"],
+                "periods":["1","60","3600","86400","604800","2678400","31536000"]
+            }
+        },
+        "bands" : {
+            "label" : {
+                "&nbsp;": "&nbsp;",
+                "low": "Low",
+                "high": "High",
+                "band": "Band",
+                "color": "Color",
+                "alpha": "Alpha",
+                "%":"%"
+            }
+        },
+        "default-tab" : {
+            "label" : {
+
+            },
+            "select" : {
+                
+            }
+        },
+        "tabs" : {
+            "main" : ["General", "Series", "Axes", "Scales", "Plugins", "Data"]
+        },
+        "dropdown" : {
+            "store":["node","flow","global"],
+            "period":["seconds","minutes","hours","days","weeks"],
+            "label":["x-Axes","left","right"],
+            "check":["on new message only","continuos (once a second)"]
+        },
+        "notes": {
+            "bands":"Select a color to fill the area between the a low and high series"
+        },
+        "dialogs": {
+            "erase":{
+                "text":"Do you really want to delete all data? This can't be undone!",
+                "button":["cancel","erase"]
+            },
+            "info":{
+                "text":"current database stats",
+                "button":["close"]
+            },
+            "clean":{
+                "text":"database cleaned / compacted",
+                "button":["close"]                
+            }
+        },
+        "error": {
+            "no-group": "group not configured"
+        }
+    }
+}
