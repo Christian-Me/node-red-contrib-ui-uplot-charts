@@ -389,7 +389,7 @@ module.exports = function(RED) {
                 }
                 if (config.width==0) {config.width = group.config.width};
                 if (config.height==0) {config.height = group.config.width};
-                
+
                 config.widgetProperties = {
                     x: getX(config.width)-12,
                     y: getY(config.height)-12, // square as default
@@ -802,7 +802,7 @@ module.exports = function(RED) {
                             if (plugins && Array.isArray(plugins) && plugins.length>0) {
                                 plugins.forEach(plugin=>{
                                     if (plugin.plugin==='bands') {
-                                        opt.bands = []; 
+                                        if (!opt.bands) opt.bands = []; 
                                         let from = $scope._data.getRowIndex(plugin.from);
                                         let to = $scope._data.getRowIndex(plugin.to);
                                         if (from !== undefined && to !== undefined) {
