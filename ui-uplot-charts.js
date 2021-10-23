@@ -53,6 +53,84 @@ module.exports = function(RED) {
     function uPlotUINode(config) {
         var _console = console;
         var node = this;
+
+        /**
+        *  adds a value to a property if value identified as a function it will 
+        *   @param  {object} destination object to add or update
+        *   @param  {string} param parameter to update
+        *   @param  {any}    value value to be added
+        *   @param  {object} scope (optional) scope to bind to function
+        **/                  
+        function addValueOrFunction (destination,param,value, scope = this) {
+            if (typeof String.prototype.parseFunction != 'function') {
+                String.prototype.parseFunction = function () {
+                    var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
+                    var match = funcReg.exec(this.replace(/\n/g, ' '));
+                    if(match) {
+                        return new Function(match[1].split(','), match[2]);
+                    }
+                    return null;
+                };
+            }
+            var valueFunction;
+            if (typeof value === "string" && (valueFunction = value.parseFunction())) {
+                destination[param]=valueFunction.bind(scope); // to enable this.send() for callback functions.
+            }
+            else destination[param]= value;
+        }
+        /**
+        *  merge one objects into another
+        *   @param  {object} destination object to add or uodate
+        *   @param  {object} source source object
+        **/            
+        function mergeObject (destination,source) {
+            for (var element in source) {
+                if (!destination[element]) destination[element]=(Array.isArray(source[element]))? [] : {};
+                if (typeof source[element] === "object") {
+                    mergeObject(destination[element],source[element])
+                } else {
+                    addValueOrFunction(destination,element,source[element]);
+                }
+            }
+        }
+        /**
+        *  add item to an array of objects identified by a key
+        *   @param  {array} target array of objects
+        *   @param  {object} item object to add
+        *   @param  {string} key identifier to match existing
+        *   @param  {object} (optional) defaultObject if new
+        *   @param  {function (item,index)} (optional) callback if default object is added to manipulate individual values
+        **/
+        function addOrUpdateItem(target, item, key, defaultObject = {}, update) {
+            let index = target.findIndex(element => element[key] === item[key])
+            if (index<0) { 
+                index = target.push({})-1;
+                mergeObject(target[index], defaultObject);
+                if (update!==undefined) update(target[index],index);
+            }
+            mergeObject(target[index],item);
+            return target[index];
+        }
+        /**
+        *  converts HEX color value to rgba() css string
+        *   @param  {string} hexString array of objects
+        *   @param  {number} alpha (optional) alpha value (defined by alphaType)
+        *   @param  {number} alphaScale (optional) range of alpha i.e. 1,100,255 defaults to 100
+        **/
+        function HEXtoRGB (hexString, alpha, alphaScale = 100) {
+            let components = [];
+            for (let i = 1; i<hexString.length; i += 2) {
+                components.push(Number("0x" + hexString.substr(i,2)));
+            }
+            if (components.length === 3 && alpha !== undefined) {
+                components.push(alpha/alphaScale);
+            }
+            if (components.length < 4) {
+                return `rgb(${components[0]},${components[1]},${components[2]})`;
+            } else {
+                return `rgba(${components[0]},${components[1]},${components[2]},${components[3].toFixed(2)})`;
+            }
+        }
         
         const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
         const defaultSeries = {show:true, spanGaps:true, band: false, width: 1, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)',path:'linear'}
@@ -164,6 +242,22 @@ module.exports = function(RED) {
                 chartTable.parseCSV(contextData.csv);
                 _node?.log(`restored from CSV ${contextData.csv.length} bytes row map ${JSON.stringify(contextData._tableRowMap)}`)
                 delete contextData.csv;
+
+                // insert defaults if series are not configured
+                Object.keys(contextData._tableRowMap).forEach ( topic => {
+                    if (contextData._config.series.find(element => element.topic===topic) === undefined) {
+                        _node?.log(`not configured "${topic}"" using defaults`);
+                        addOrUpdateItem(contextData._config.series,{topic},'topic',defaultSeries,
+                            (item,index) => {
+                                let color = (defaultColors[index]!==undefined) ? defaultColors[index] : '#ff0000';
+                                item.label = topic;
+                                item.stroke = HEXtoRGB(color ,100);
+                                item.fill = HEXtoRGB(color,30);
+                                item.topicReadOnly = true;
+                            }
+                        );
+                    }
+                });
             } else {
                 chartTable = new TimeTable(contextData._tableContent, contextData._tableRowMap);
                 chartTable.setLogger((config.debugServer) ? node : undefined);
@@ -196,7 +290,7 @@ module.exports = function(RED) {
             result = chartTable.getSizes();
             _node?.log(`${result.cellsUsed} used in ${result.columns} total cells. Memory ${result.memoryString} (usage ${result.ratioPercent}) `);            
             
-            RED.httpAdmin.get("/uPlot/"+node.id, RED.auth.needsPermission('ui-plot-charts.read'), function(req,res) {
+            RED.httpAdmin.get("/uPlot/"+node.id, RED.auth.needsPermission('uplot.read'), function(req,res) {
                 _node?.log(`http request "${req.query.query}" fom ip: ${req.headers.host}`);
                 var returnItems = []; // list of Items to send back to the frontend
                 var config = req.query;
@@ -293,87 +387,12 @@ module.exports = function(RED) {
                 var getY = function(gridY) {
                     return ((gridY===0) ? 0 : parseInt(config.site.sizes.sy * gridY + config.site.sizes.cy * (gridY - 1)));
                 }
-                /**
-                *  adds a value to a property if value identified as a function it will 
-                *   @param  {object} destination object to add or update
-                *   @param  {string} param parameter to update
-                *   @param  {any}    value value to be added
-                *   @param  {object} scope (optional) scope to bind to function
-                **/                  
-                function addValueOrFunction (destination,param,value, scope = this) {
-                    if (typeof String.prototype.parseFunction != 'function') {
-                        String.prototype.parseFunction = function () {
-                            var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
-                            var match = funcReg.exec(this.replace(/\n/g, ' '));
-                            if(match) {
-                                return new Function(match[1].split(','), match[2]);
-                            }
-                            return null;
-                        };
-                    }
-                    var valueFunction;
-                    if (typeof value === "string" && (valueFunction = value.parseFunction())) {
-                        destination[param]=valueFunction.bind(scope); // to enable this.send() for callback functions.
-                    }
-                    else destination[param]= value;
-                }
-                /**
-                *  merge one objects into another
-                *   @param  {object} destination object to add or uodate
-                *   @param  {object} source source object
-                **/            
-                function mergeObject (destination,source) {
-                    for (var element in source) {
-                        if (!destination[element]) destination[element]=(Array.isArray(source[element]))? [] : {};
-                        if (typeof source[element] === "object") {
-                            mergeObject(destination[element],source[element])
-                        } else {
-                            addValueOrFunction(destination,element,source[element]);
-                        }
-                    }
-                }
-                /**
-                *  add item to an array of objects identified by a key
-                *   @param  {array} target array of objects
-                *   @param  {object} item object to add
-                *   @param  {string} key identifier to match existing
-                *   @param  {object} (optional) defaultObject if new
-                *   @param  {function (item,index)} (optional) callback if default object is added to manipulate individual values
-                **/
-                function addOrUpdateItem(target, item, key, defaultObject = {}, update) {
-                    let index = target.findIndex(element => element[key] === item[key])
-                    if (index<0) { 
-                        index = target.push({})-1;
-                        mergeObject(target[index], defaultObject);
-                        if (update!==undefined) update(target[index],index);
-                    }
-                    mergeObject(target[index],item);
-                    return target[index];
-                }
-                /**
-                *  converts HEX color value to rgba() css string
-                *   @param  {string} hexString array of objects
-                *   @param  {number} alpha (optional) alpha value (defined by alphaType)
-                *   @param  {number} alphaScale (optional) range of alpha i.e. 1,100,255 defaults to 100
-                **/
-                function HEXtoRGB (hexString, alpha, alphaScale = 100) {
-                    let components = [];
-                    for (let i = 1; i<hexString.length; i += 2) {
-                        components.push(Number("0x" + hexString.substr(i,2)));
-                    }
-                    if (components.length === 3 && alpha !== undefined) {
-                        components.push(alpha/alphaScale);
-                    }
-                    if (components.length < 4) {
-                        return `rgb(${components[0]},${components[1]},${components[2]})`;
-                    } else {
-                        return `rgba(${components[0]},${components[1]},${components[2]},${components[3].toFixed(2)})`;
-                    }
-                }
-    
+                if (config.width==0) {config.width = group.config.width};
+                if (config.height==0) {config.height = group.config.width};
+                
                 config.widgetProperties = {
-                    x: getX((config.width!==0) ? config.width : group.config.width)-12,
-                    y: getY((config.height!==0) ? config.height : group.config.width)-12, // square as default
+                    x: getX(config.width)-12,
+                    y: getY(config.height)-12, // square as default
                 };
 
                 chartTable.remapRows(config.series.map(item => item.topic)); // remap rows for deleted or reordered rows
@@ -814,15 +833,15 @@ module.exports = function(RED) {
                             widgetDiv = '#ui_uplot_chart-' + $scope.$eval('$id');
 
                             let heightExtra = 0;
-                            heightExtra += ($scope.config.spaceForTitle>0) ? $scope.config.spaceForTitle : 50;
-                            heightExtra += ($scope.config.spaceForLegend>0) ? $scope.config.spaceForLegend : 50;
+                            heightExtra += ($scope.config.spaceForTitle>0) ? parseInt($scope.config.spaceForTitle) : 50;
+                            heightExtra += ($scope.config.spaceForLegend>0) ? parseInt($scope.config.spaceForLegend) : 50;
 
 
                             $scope.opts = {
                                 title: $scope.config.title,
                                 id: widgetDiv,
                                 width: $scope.config.widgetProperties.x,
-                                height: $scope.config.widgetProperties.y - 100,
+                                height: $scope.config.widgetProperties.y - heightExtra,
                             };
 
                             addPlugins($scope.opts,$scope.config.plugins)
