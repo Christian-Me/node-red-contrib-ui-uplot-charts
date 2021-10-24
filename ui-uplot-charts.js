@@ -298,7 +298,7 @@ module.exports = function(RED) {
                     case 'series':
                         if (chartTable.getHeight()>0) {
                             returnItems = contextData._config.series;
-                            //_console?.log('http request return:', Object.keys(returnItems).map(item => returnItems[item].topic));
+                            _console?.log('http request return:', Object.keys(returnItems).map(item => returnItems[item].label));
                         }
                         break;
                     case 'axesX':

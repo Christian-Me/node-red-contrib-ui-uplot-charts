@@ -35,12 +35,16 @@ The goal is to develop a dashboard chart node somewhere between the default char
 * "wheel zoom" does not work well together with "keep zoom and pan"
 * "single use" Plugins can be used more than once with unpredictable results.
 * title and legend sizes not currently not calculated automatically sometimes resulting in scroll bars (to avoid this set the height values)
-* "legend as tooltip" cannot escape the widget rect resulting in scroll bars
+* "legend as tooltip" cannot escape the widget rect resulting in scroll bars.
+* changing the data storage results in loss of all previous data.
+* new scales are not available in existing series. Reopen config as a workaround
+* reorder of series seams not to work as planned
 
 ## Features planned for the future (in no particular order):
 
 - [ ] refactoring of the data storage for optimal data use and reduced file access (SD card users be warned!)
 - [ ] regular data backups
+- [ ] transfer data to new storage if context or store changed
 - [ ] more input formats like objects or csv data
 - [ ] support of non time based charts
 - [ ] support of callback functions where suitable (i.e. legend formatting)  
@@ -109,7 +113,7 @@ none
 
 Data series are defined here. They will be auto added and configured as soon as a new `mgs.topic` arrives but can be edited or pre defined.
 
-Data series can be sorted to have control over the draw order and appearance in the legend
+Data series can be sorted to have control over the draw order and appearance in the legend\*
 
 |property | type | description
 |--------:|:-----|------------
@@ -131,6 +135,8 @@ The X-axes is defined by an JSON object. Two pre defined configuration can be lo
 
 Y axes can be defined:
 
+Order of the axes only for visual convenience.
+
 |property | type | description
 |--------:|:-----|------------
 |label|string| Label text to be displayed
@@ -149,6 +155,7 @@ Y axes can be defined:
 ### Scales
 
 Scales can be defined individually and used for data series and axes.
+Order of the scales only for visual convenience.
 
 |property | type | description
 |--------:|:-----|------------
@@ -161,6 +168,7 @@ Scales can be defined individually and used for data series and axes.
 ### Plugins
 
 uPlot-charts functionality can be expanded via "plugins". All plugins can be disabled without losing the configuration.
+Order of the plugins only for visual convenience.
 
 |plugin | property | type | description |
 |-------|--------:|:-----|------------|
@@ -185,10 +193,14 @@ uPlot-charts functionality can be expanded via "plugins". All plugins can be dis
 
 uPlot-charts database is a table (array of arrays `[[]]`). The database can be stored in node-, flow- or global-context. The data store can be selected. For flow and global context a unique name can be provided.
 
-'file system' store data is written to file only at a gracefully shutdown. A crash will result in a loss of data since last Node-Red start.\*
-
-For data maintenance different plugins can be applied.
-
+* 'file system' store data is written to file only at a gracefully shutdown. A crash will result in a loss of data since last Node-Red start.\*
+* For data maintenance different plugins can be applied.  
+* Order of the data plugins only for visual convenience.  
+* General Internal order of execution (if not triggered by timers or messages)
+1. limit total time period
+2. reduce data by intervals (beginning at the oldest)
+3. clean table (delete unused columns)
+4. limit amount of columns
 
 |plugin | property | type | description |
 |-------|--------:|:-----|------------|
