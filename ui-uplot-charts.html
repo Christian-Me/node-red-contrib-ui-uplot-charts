@@ -107,7 +107,9 @@
         if (typeof value === "string" && (valueFunction = value.parseFunction())) {
             config[param]=valueFunction.bind($scope); // to enable this.send() for callback functions.
         }
-        else config[param]= value;
+        else if (config[param]===undefined) {
+            config[param]= value;
+        }
     }
 
     function mergeObject (destinationObject,sourceObject) {
@@ -581,7 +583,7 @@
                                         ));
                                         break;
                                     case 'typedInput': // only arrays!
-                                        xonsole.log("typedInput",element.find(cssKey).val())
+                                        //console.log("typedInput",element.find(cssKey).val())
                                         result = setProperty(c,key,JSON.parse(element.find(cssKey).val()));
                                         if (!Array.isArray(result)) setProperty(c,key,[]);
                                         break;
@@ -881,7 +883,30 @@
             let dataContainer = node.uiListElements.default.setRow($('#node-input-data-top'));
         
             dataContainer.addLabel('store');
-            dataContainer.addTypedInput('dataStore',[{value:"store",label:"node",options:dataStores},"flow","global"],(this.dataStore.typedValue) ? this.dataStore.typedValue : this.dataStore.store,this.dataStore.context,(contentWidth-40)+'%');
+            dataContainer.addTypedInput(
+                'dataStore',
+                [{value:"store",label:"node",options:dataStores},"flow","global"],
+                (this.dataStore.typedValue) ? this.dataStore.typedValue : this.dataStore.store,
+                this.dataStore.context,(contentWidth-40)+'%'
+            );
+                /*,
+                (event, type, value) => {
+                    let element = $(event.target);
+                    let lastSelected = element.prop('_lastSelectedValue');
+                    let lastSelectedType = element.prop('_lastSelectedType');
+                    console.log('change event', {event, type, value, lastSelected, lastSelectedType})
+                    switch (type) {
+                        case 'global':
+                        case 'flow': 
+                            if (lastSelected && value!==lastSelected) { 
+                                element.typedInput('value', lastSelected);
+                            }
+                            element.prop('_lastSelectedValue',value);
+                            break;
+                    }
+                    element.prop('_lastSelectedType',type);
+                }
+            );*/
             dataContainer.addButton('erase','erase','15%','click',(button => {
                 dataContainer.setInput('erase','<i class="fa fa-spinner fa-spin">');
                 var myNotification = RED.notify(node._("uplot.dialogs.erase.text"),{

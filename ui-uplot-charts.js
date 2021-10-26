@@ -234,9 +234,9 @@ module.exports = function(RED) {
 
             contextData._config = RED.util.cloneMessage(config);
             var chartTable = null;
+            contextData._tableContent = [[]];
             if (contextData.hasOwnProperty('csv')) {
                 // _console?.log(contextData);
-                contextData._tableContent = [[]];
                 chartTable = new TimeTable(contextData._tableContent, contextData._tableRowMap);
                 chartTable.setLogger((config.debugServer) ? node : undefined);
                 chartTable.parseCSV(contextData.csv);
@@ -259,9 +259,12 @@ module.exports = function(RED) {
                     }
                 });
             } else {
+                if (contextData._tableContent===undefined) contextData._tableContent=[[]];
                 chartTable = new TimeTable(contextData._tableContent, contextData._tableRowMap);
                 chartTable.setLogger((config.debugServer) ? node : undefined);
             }
+            contextData._tableContent=chartTable.remapRows(config.series.map(row => row.topic));
+            contextData._tableRowMap=chartTable.getRowMap(); // sync in row map
             
             _node?.log(`restored ${chartTable.getWidth()} columns and ${chartTable.getHeight()} rows from context:"${config.dataStore.context}" property:"${contextId}" store:"${contextStore}" module:"${RED.settings.contextStorage[contextStore].module}"`);
             result = chartTable.getSizes();
@@ -433,6 +436,7 @@ module.exports = function(RED) {
                             }
                             _node?.log(`replay rows:${chartTable.getHeight()} columns:${chartTable.getWidth()}`)
                             fullDataset.msg.fullDataset=chartTable.getCSV();
+                            fullDataset.msg.rowMap=chartTable.getRowMap();
                             fullDataset.msg.seriesConfig=contextData._config.series;
                             return fullDataset;
                         }
@@ -517,7 +521,7 @@ module.exports = function(RED) {
 
                         //_console?.log(`updated table ${addedValues} added ${(removed>0) ? removed + ' removed' : ''}`);
 
-                        conversion.updatedValues.msg.dataMap = chartTable.getRowMap();
+                        conversion.updatedValues.msg.rowMap = chartTable.getRowMap();
                         delete conversion.updatedValues.msg.fullDataset;
                         // conversion.updatedValues.msg.fullDataset = chartTable.getTable();
                         conversion.updatedValues.msg.tempConfig = contextData._config;
@@ -805,6 +809,7 @@ module.exports = function(RED) {
                                         if (!opt.bands) opt.bands = []; 
                                         let from = $scope._data.getRowIndex(plugin.from);
                                         let to = $scope._data.getRowIndex(plugin.to);
+                                        _console?.log(`band from: ${from}:"${plugin.from}" to ${to}:"${plugin.to}" `);
                                         if (from !== undefined && to !== undefined) {
                                             opt.bands.push({
                                                 series: [from,to],
@@ -872,7 +877,7 @@ module.exports = function(RED) {
                             }
                             if (msg.hasOwnProperty('fullDataset')) {
                                 $scope._data.parseCSV(msg.fullDataset);
-                                $scope._data.setRowMap(msg.dataMap);
+                                $scope._data.setRowMap(msg.rowMap);
                                 _console?.log('uPlot fullDataset received:',$scope._data.getTable(),$scope._data.getRowMap());
                                 if (msg.hasOwnProperty('seriesConfig')) {buildSeries($scope.opts,msg.seriesConfig);}
                                 buildBands($scope.opts,$scope.config.plugins);

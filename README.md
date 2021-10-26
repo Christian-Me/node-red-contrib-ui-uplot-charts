@@ -32,13 +32,15 @@ The goal is to develop a dashboard chart node somewhere between the default char
 
 ## known issues
 
-* "wheel zoom" does not work well together with "keep zoom and pan"
+* there is an bug in the typedInput widgets until Node-Red Version 2.1.2 - please update.
+* "wheel zoom" does not work well together with "keep zoom and pan" 
 * "single use" Plugins can be used more than once with unpredictable results.
 * title and legend sizes not currently not calculated automatically sometimes resulting in scroll bars (to avoid this set the height values)
-* "legend as tooltip" cannot escape the widget rect resulting in scroll bars.
+* "legend as tooltip" cannot escape the widget rect resulting in scroll bars. (same as chart node - any ideas?)
 * changing the data storage results in loss of all previous data.
 * new scales are not available in existing series. Reopen config as a workaround
-* reorder of series seams not to work as planned
+* forward values sometimes have a glitch after deploy forwarding the wrong state.
+- [X] reorder of series seams not to work as planned (fixed - to be tested)
 
 ## Features planned for the future (in no particular order):
 
@@ -56,6 +58,7 @@ The goal is to develop a dashboard chart node somewhere between the default char
 - [ ] path `size` and path `align` to be configurable  
 - [ ] average / rolling average and perhaps other statistical functions  
 - [ ] Editor help screen with essential information and / or tooltips
+- [ ] Forwarding values following the trend (any Ideas?)
 
 For latest Updates see the change log in the end of this document.
 
