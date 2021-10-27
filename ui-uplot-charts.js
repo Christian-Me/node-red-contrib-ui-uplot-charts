@@ -133,7 +133,7 @@ module.exports = function(RED) {
         }
         
         const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
-        const defaultSeries = {show:true, spanGaps:true, band: false, width: 1, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)',path:'linear'}
+        const defaultSeries = {show:true, spanGaps:true, band: false, width: 2, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0)',path:'linear'}
         const defaultAxesX12h = {
             space: 40,
             incrs: [
@@ -460,9 +460,9 @@ module.exports = function(RED) {
                             addOrUpdateItem(contextData._config.series,{topic:msg.topic},'topic',defaultSeries,
                                 (item,index) => {
                                     let color = (defaultColors[index]!==undefined) ? defaultColors[index] : '#ff0000';
-                                    item.label = msg.topic;
+                                    item.label = msg.label || msg.topic || "unnamed";
                                     item.stroke = HEXtoRGB(color ,100);
-                                    item.fill = HEXtoRGB(color,30);
+                                    item.fill = HEXtoRGB(color,0);
                                     item.topicReadOnly = true;
                                 }
                             );
@@ -653,17 +653,16 @@ module.exports = function(RED) {
                         var updateChart = function() {
                             $scope.uPlot.batch(() => {
                                 $scope.uPlot.setData($scope._data.getTable());
-                                if ($scope.plugins.keepZoomLevelPlugin) {
-                                    let scaleDelta =  ($scope.plugins.keepZoomLevelPlugin.panWithData) ?
-                                        $scope._data.getLastTimestamp()-$scope._data.getLastTimestamp(1) :
-                                        0;
-                                    // let time = new Date($scope.uPlot.scales.x.min);
-                                    // _console?.log(`new msg pan start:${time.getHours()}:${time.getMinutes()}.${time.getSeconds()} + ${scaleDelta}s`)
-                                    // _console?.log({scaleDelta,min:$scope.uPlot.scales.x.min,max:$scope.uPlot.scales.x.max});
-                                    $scope.uPlot.setScale("x", {
-                                        min: $scope.uPlot.scales.x.min + scaleDelta,
-                                        max: $scope.uPlot.scales.x.max + scaleDelta,
-                                    });
+                                if ($scope.plugins.keepZoomLevelPlugin && $scope.plugins.keepZoomLevelPlugin.panWithData) {
+                                    let delta=$scope._data.getLastTimestamp()-$scope._data.getTimestamp()
+                                    if (delta>$scope.plugins.keepZoomLevelPlugin.initialPeriod || 0) {
+                                        let scaleDelta = $scope._data.getLastTimestamp()-$scope._data.getLastTimestamp(1);
+                                        _console?.log($scope.plugins.keepZoomLevelPlugin.initialPeriod,{scaleDelta,min:$scope.uPlot.scales.x.min,max:$scope.uPlot.scales.x.max});
+                                        $scope.uPlot.setScale("x", {
+                                            min: $scope.uPlot.scales.x.min + scaleDelta,
+                                            max: $scope.uPlot.scales.x.max + scaleDelta,
+                                        });
+                                    }
                                 }
                             });
                         }
@@ -688,14 +687,14 @@ module.exports = function(RED) {
 
                             if ($scope.plugins.keepZoomLevelPlugin) {
                                 let config = $scope.plugins.keepZoomLevelPlugin;
-                                if (config.defaultZoom>0) {
+                                if (config.defaultZoom!==0) {
                                     let timeNow = new Date();
                                     let now = timeNow.getTime() / 1000;
-                                    // _console?.log(`initial zoom start:${timeNow.getHours()}:${timeNow.getMinutes()}.${timeNow.getSeconds()} + ${config.defaultZoom * config.defaultZoomPeriod}s`)
-                                    $scope.uPlot.setScale("x", {
-                                        min: now - (config.defaultZoom * config.defaultZoomPeriod),
-                                        max: now,
-                                    });
+                                    let min = now - ((config.defaultZoom>0)? (config.defaultZoom * config.defaultZoomPeriod) : 0);
+                                    let max = now - ((config.defaultZoom>0)? 0 : (config.defaultZoom * config.defaultZoomPeriod));
+                                    config.initialPeriod=max-min;
+                                    $scope.uPlot.setScale("x", {min,max});
+                                    _console?.log(`initial zoom ${min}:${max} start:${timeNow.getHours()}:${timeNow.getMinutes()}.${timeNow.getSeconds()} + ${config.defaultZoom * config.defaultZoomPeriod}s`)
                                 }
                             }
                         }
@@ -768,9 +767,15 @@ module.exports = function(RED) {
                                 if (!opt.axes[0]) opt.axes[0]={}
                                 mergeObject(opt.axes[0],axesX);
                                 axes.forEach((item,index) => {
-                                    if (!opt.axes[index+1]) opt.axes[index+1]={}
-                                    mergeObject(opt.axes[index+1],item);
-                                    if (opt.axes[index+1].side===0) delete opt.axes[index+1].side;
+                                    if (item.side<4) {
+                                        if (!opt.axes[index+1]) opt.axes[index+1]={}
+                                        mergeObject(opt.axes[index+1],item);
+                                        if (opt.axes[index+1].side===0) delete opt.axes[index+1].side;
+                                    } else {
+                                        delete item.side;
+                                        delete item.scale;
+                                        mergeObject(opt.axes[0],item);
+                                    }
                                 })
                             }
                         }
@@ -859,6 +864,8 @@ module.exports = function(RED) {
                             createUPlot();
                             _console?.log('uPlot initialized > asking for replay');
                             $scope.send({payload:"R"});
+                            $scope.waitingForReplay = true;
+                            setTimeout(() => {$scope.waitingForReplay = false},5000);
 
                             let result = $scope._data.setTimers(config.dataPlugins, true);
                             _console?.log(`setTimers result:${result}`);
@@ -867,8 +874,14 @@ module.exports = function(RED) {
                         $scope.$watch('msg', function(msg) {
                             if (!msg) { return; } // Ignore undefined msg
                             if (!msg.hasOwnProperty('fullDataset') && $scope._data.getWidth()<1) {
-                                _console?.log('uPlot first Message > asking for replay');
-                                $scope.send({payload:"R"});
+                                if (!$scope.waitingForReplay) {
+                                    _console?.log('uPlot first Message > asking for replay');
+                                    $scope.send({payload:"R"});
+                                    $scope.waitingForReplay = true;
+                                    setTimeout(() => {$scope.waitingForReplay = false},5000);
+                                } else {
+                                    _console?.log('uPlot first Message > waiting for replay');
+                                }
                                 return;
                             }
                             if (msg.hasOwnProperty('config')) {

@@ -190,7 +190,7 @@
                 "increments": "Increments"
             },
             "select" : {
-                "side":["left","right","bottom"]
+                "side":["left","right","bottom","top","X axes"]
             }
         },
         "plugins" : {

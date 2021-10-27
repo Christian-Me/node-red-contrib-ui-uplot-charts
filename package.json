@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-ui-uplot-charts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "alternative chart widget for the Node-RED dashboard",
   "peerDependencies": {
     "node-red-dashboard": ">2.15.0"

@@ -114,8 +114,8 @@
 
     function mergeObject (destinationObject,sourceObject) {
         for (var element in sourceObject) {
-            if (!destinationObject[element]) destinationObject[element]=(Array.isArray(sourceObject[element]))? [] : {};
-            if (typeof sourceObject[element] === "object") {
+            if (typeof sourceObject[element] === "object" || Array.isArray(sourceObject[element])) {
+                if (!destinationObject[element]) destinationObject[element]=(Array.isArray(sourceObject[element]))? [] : {};
                 mergeObject(destinationObject[element],sourceObject[element])
             } else {
                 addValueOrFunction(destinationObject,element,sourceObject[element]);
@@ -205,7 +205,7 @@
         oneditprepare: function() {
             var node = this;
             uplotGetConfig(node,'series', undefined, ( (data) => {
-                    //console.log('uplotGetConfig series', data);
+                    console.log('uplotGetConfig series', data);
                     Object.keys(data).forEach(item => {
                         addOrUpdateItem(node.series,data[item],'topic',defaultSeries,
                             (item,index) => {
@@ -340,6 +340,10 @@
                 this.getElements = function() {
                     return this.uiElements;
                 }
+                this.getElement = function(container,id) {
+                    return container.find(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
+                    return $(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
+                }
                 this.addClassicLabel = function(label, icon = '') {
                     let forId = `node-input-${(this.id!=='') ? this.id+'-' : ''}${label}`;
                     label = node._(this.root+"."+this.id+".label." + ((this._groupId!=='') ? this._groupId+'.' : '') + label);
@@ -471,6 +475,9 @@
                 }
                 this.addProp = function (id,prop,value) {
                     $(`.node-input-${this.id}-${id.replaceAll('.','-')}`).prop(prop,value);
+                };
+                this.setProp = function (id,prop,value) {
+                    this.uiElements[id]?.element?.prop(prop,value);
                 };
                 this.getValue = function(id,value) {
                     var elements = this.uiElements;
@@ -606,7 +613,7 @@
             }
             if (!this.series) this.series = [];
             if (!this.axes) this.axes=[];
-            if (!this.scales) this.scales=[];
+            if (!this.scales) this.scales=[{label:"X-Axes"}];
             if (!this.plugins) this.plugins=[];
             if (!this.dataPlugins) this.dataPlugins=[];
 
@@ -717,6 +724,7 @@
                     uiElements.addElement('br');
                     
                     //Options
+                    console.log(data);
                     uiElements.addLabel('options');
                     uiElements.addInput('spanGaps',{type:'checkbox',checked: (data.spanGaps!==undefined) ? data.spanGaps : defaultSeries.spanGaps},undefined,'5%')
                     uiElements.addLabel('spanGaps',contentWidth/3-5+'%');
@@ -748,6 +756,7 @@
                 })
             );
             axesContainer.addTypedInput('axesX',["json"],JSON.stringify(this.axesX),'json',(contentWidth-25)+'%');
+            
 
 
             $('#node-input-axes-container')
@@ -790,9 +799,16 @@
                     uiElements.addElement('br');
                     
                     //side
-                    let side = [0,1,2].map(value =>{return {i18n:'side',value}});
+                    let side = [0,1,2,3,4].map(value =>{return {i18n:'side',value}});
                     uiElements.addLabel('side');
                     uiElements.addSelect('side',side,data.side,contentWidth/2+'%','integer');
+                    uiElements.setProp('scale','disabled',data.side===4);
+                    uiElements.addEvent('change',(function (element) {
+                        var uiElement = uiElements;
+                        if (parseInt(element.val())===4) {
+                            uiElement.setProp('scale','disabled',true);
+                        }
+                    }))
                     uiElements.addElement('br');
 
                     // grid
@@ -1189,7 +1205,7 @@
                             uiElements.addElement('br');
                             uiElements.addLabel('defaultX');
                             uiElements.addLabel('defaultZoom',contentWidth/4-5+'%');
-                            uiElements.addInput('defaultZoom',{type:'number',min:1},data.defaultZoom || 1,contentWidth/4+5+'%');
+                            uiElements.addInput('defaultZoom',{type:'number'},data.defaultZoom || 1,contentWidth/4+5+'%');
                             uiElements.addSelect('defaultZoomPeriod',defaultZoomPeriods,data.defaultZoomPeriod || 3600,contentWidth/2+'%','integer');
                         uiElements.closeGroup();
                         // wheel zoom and pan

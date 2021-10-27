@@ -1,1 +1,530 @@
-[{"id":"8b1e8bd20595291a","type":"group","z":"db39bbbe01b608ed","name":"basic demo","style":{"label":true},"nodes":["7609eb8c228cf217","ba2380e0.4c50f","205fbb45.c175f4","389dc09f4c0f5f89","64232a9ea667c777","4ebcbd10cd110a30"],"x":54,"y":59,"w":632,"h":222},{"id":"7609eb8c228cf217","type":"ui_uplot-charts","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","group":"e8592788a2921318","order":0,"width":"20","height":"15","name":"","title":"Test Chart","series":[{"topic":"temperature","label":"Temp","scale":"C","stroke":"rgba(255,0,0,1.00)","width":1,"dash":[],"path":"spline","fill":"rgba(238,0,255,0.30)","spanGaps":true,"show":true,"forward":false},{"topic":"pressure","label":"Pressure","scale":"hPa","stroke":"rgba(154,87,255,1.00)","width":3,"dash":[],"path":"spline","fill":"rgba(156,121,175,0.00)","spanGaps":true,"show":true,"forward":false},{"topic":"pump","label":"Pump","scale":"Switch","stroke":"rgba(255,200,0,1.00)","width":1,"dash":[],"path":"stepAfter","fill":"rgba(255,162,0,0.30)","spanGaps":true,"show":true,"forward":true}],"scales":[{"id":"C","name":"Themperature","auto":false,"min":-10,"max":40},{"id":"hPa","name":"Atmospheric Pressure","auto":false,"min":955,"max":1060},{"id":"Switch","name":"State","auto":false,"min":0,"max":1}],"axes":[{"label":"Temperature","scale":"C","stroke":"rgba(218,62,62,1.00)","side":0,"grid":{"stroke":"rgba(127,127,127,0.80)","width":1,"dash":[1,5],"show":true},"ticks":{"stroke":"rgba(201,66,64,1.00)","width":2,"dash":[],"show":true}},{"label":"Pressure","scale":"hPa","stroke":"rgba(107,59,129,0.80)","side":1,"grid":{"stroke":"rgba(226,105,216,0.80)","width":1,"dash":[1,5],"show":true},"ticks":{"stroke":"rgba(127,127,127,0.80)","width":2,"dash":[],"show":true}}],"axesX":{"space":40,"incrs":[1,5,10,15,30,60,300,600,900,1800,3600,86400,2419200,31536000],"values":[[31536000,"{YYYY}","","","","","","",1],[2419200,"{MMM}","\n{YYYY}","","","","","",1],[86400,"{DD}.{MM}","\n{YYYY}","","","","","",1],[3600,"{H}","\n{DD}.{MM}.{YY}","","\n{DD}.{MM}","","","",1],[60,"{H}:{mm}","\n{DD}.{MM}.{YY}","","\n{DD}.{MM}","","","",1],[1,"{ss}s","\n{DD}.{MM}.{YY} {H}:{mm}","","\n{DD}.{MM} {H}:{mm}","","\n{H}:{mm}","",1],[0.001,"{ss}.{fff}s","\n{DD}.{MM}.{YY} {H}:{mm}","","\n{DD}.{MM} {H}:{mm}","","\n{H}:{mm}","",1]]},"plugins":[{"plugin":"bands","enabled":true,"from":"temperature","to":"pressure","fill":"rgba(19,135,185,0.30)"},{"plugin":"wheelPanZoomPlugin","enabled":true,"factor":0.75},{"plugin":"columnHighlightPlugin","enabled":true,"highlight":"rgba(51,204,255,0.30)"},{"plugin":"legendAsTooltipPlugin","enabled":true,"text":"rgba(0,0,0,0.85)","background":"rgba(194,255,247,0.80)"},{"plugin":"keepZoomLevelPlugin","enabled":true,"panWithData":true,"defaultZoom":1,"defaultZoomPeriod":3600}],"dataPlugins":[{"plugin":"limitColumns","enabled":true,"columns":100000,"limitColumnsEvery":12,"limitColumnsPeriods":3600},{"plugin":"limitTime","enabled":false,"last":1,"period":2678400,"limitTimeEvery":1,"limitTimePeriods":86400,"checkEvery":0},{"plugin":"cleanTable","enabled":false,"cleanEvery":1,"cleanPeriod":3600},{"plugin":"reduceData","enabled":false,"older":1,"threshold":86400,"span":5,"periods":60,"applyTo":["temperature","pressure"],"method":"average","resultAt":2},{"plugin":"reduceData","enabled":false,"older":5,"threshold":86400,"span":30,"periods":60,"applyTo":["temperature","pressure"],"method":"average","resultAt":2},{"plugin":"reduceData","enabled":false,"older":10,"threshold":86400,"span":1,"periods":3600,"applyTo":["temperature","pressure"],"method":"average","resultAt":2}],"dataStore":{"context":"node","store":"file"},"debugServer":false,"debugClient":false,"spaceForTitle":"50","spaceForLegend":"0","x":590,"y":100,"wires":[[]]},{"id":"ba2380e0.4c50f","type":"inject","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","name":"","props":[{"p":"timestamp","v":"","vt":"date"},{"p":"topic","vt":"str"},{"p":"initialValue","v":"20","vt":"num"},{"p":"range","v":"[-10,35]","vt":"json"},{"p":"variation","v":"1","vt":"num"}],"repeat":"10","crontab":"","once":true,"onceDelay":0.1,"topic":"temperature","x":180,"y":100,"wires":[["205fbb45.c175f4"]]},{"id":"205fbb45.c175f4","type":"function","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","name":"randomize","func":"var value = context.get(msg.topic) || msg.initialValue;\nvalue += Math.random()*msg.variation-(msg.variation/2);\nif (value<msg.range[0]) value = msg.range[0];\nif (value>msg.range[1]) value = msg.range[1];\ncontext.set(msg.topic,value);\nmsg.payload=value;\nnode.status({fill:\"green\",shape:\"dot\",text:`${msg.topic}=${value.toFixed(2)}`});\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","libs":[],"x":390,"y":100,"wires":[["7609eb8c228cf217"]]},{"id":"389dc09f4c0f5f89","type":"debug","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","name":"","active":false,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","statusVal":"","statusType":"auto","x":590,"y":160,"wires":[]},{"id":"64232a9ea667c777","type":"inject","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","name":"","props":[{"p":"timestamp","v":"","vt":"date"},{"p":"topic","vt":"str"},{"p":"initialValue","v":"1000","vt":"num"},{"p":"range","v":"[955,1060]","vt":"json"},{"p":"variation","v":"1","vt":"num"}],"repeat":"15","crontab":"","once":true,"onceDelay":0.1,"topic":"pressure","x":170,"y":180,"wires":[["205fbb45.c175f4"]]},{"id":"4ebcbd10cd110a30","type":"ui_switch","z":"db39bbbe01b608ed","g":"8b1e8bd20595291a","name":"","label":"Pump","tooltip":"","group":"e8592788a2921318","order":1,"width":0,"height":0,"passthru":true,"decouple":"false","topic":"pump","topicType":"str","style":"","onvalue":"1","onvalueType":"num","onicon":"","oncolor":"","offvalue":"0","offvalueType":"num","officon":"","offcolor":"","animate":false,"x":150,"y":240,"wires":[["7609eb8c228cf217","389dc09f4c0f5f89"]]},{"id":"e8592788a2921318","type":"ui_group","name":"Basics","tab":"3c1f8373e77c2cdd","order":1,"disp":true,"width":"20","collapse":true},{"id":"3c1f8373e77c2cdd","type":"ui_tab","name":"uPlot","icon":"dashboard","disabled":false,"hidden":false}]
+[
+    {
+        "id": "7609eb8c228cf217",
+        "type": "ui_uplot-charts",
+        "z": "db39bbbe01b608ed",
+        "group": "e8592788a2921318",
+        "order": 0,
+        "width": "20",
+        "height": "15",
+        "name": "",
+        "title": "Test Chart",
+        "series": [
+            {
+                "topic": "pump",
+                "label": "Pump",
+                "scale": "Switch",
+                "stroke": "rgba(255,200,0,1.00)",
+                "width": 3,
+                "dash": [],
+                "path": "stepAfter",
+                "fill": "rgba(255,162,0,0.90)",
+                "spanGaps": true,
+                "show": true,
+                "forward": true
+            },
+            {
+                "topic": "temperature",
+                "label": "Temp",
+                "scale": "C",
+                "stroke": "rgba(255,0,0,1.00)",
+                "width": 1,
+                "dash": [],
+                "path": "spline",
+                "fill": "rgba(238,0,255,0.30)",
+                "spanGaps": true,
+                "show": true,
+                "forward": true
+            },
+            {
+                "topic": "pressure",
+                "label": "Pressure",
+                "scale": "hPa",
+                "stroke": "rgba(154,87,255,1.00)",
+                "width": 3,
+                "dash": [],
+                "path": "spline",
+                "fill": "rgba(156,121,175,0.00)",
+                "spanGaps": true,
+                "show": true,
+                "forward": true
+            }
+        ],
+        "scales": [
+            {
+                "id": "C",
+                "name": "Themperature",
+                "auto": false,
+                "min": -10,
+                "max": 40
+            },
+            {
+                "id": "hPa",
+                "name": "Atmospheric Pressure",
+                "auto": false,
+                "min": 955,
+                "max": 1060
+            },
+            {
+                "id": "Switch",
+                "name": "State",
+                "auto": false,
+                "min": 0,
+                "max": 1
+            }
+        ],
+        "axes": [
+            {
+                "label": "Temperature",
+                "scale": "C",
+                "stroke": "rgba(218,62,62,1.00)",
+                "side": 0,
+                "grid": {
+                    "stroke": "rgba(127,127,127,0.80)",
+                    "width": 1,
+                    "dash": [
+                        1,
+                        5
+                    ],
+                    "show": true
+                },
+                "ticks": {
+                    "stroke": "rgba(201,66,64,1.00)",
+                    "width": 2,
+                    "dash": [],
+                    "show": true
+                }
+            },
+            {
+                "label": "Pressure",
+                "scale": "hPa",
+                "stroke": "rgba(107,59,129,0.80)",
+                "side": 1,
+                "grid": {
+                    "stroke": "rgba(226,105,216,0.80)",
+                    "width": 1,
+                    "dash": [
+                        1,
+                        5
+                    ],
+                    "show": true
+                },
+                "ticks": {
+                    "stroke": "rgba(127,127,127,0.80)",
+                    "width": 2,
+                    "dash": [],
+                    "show": true
+                }
+            }
+        ],
+        "axesX": {
+            "space": 40,
+            "incrs": [
+                1,
+                5,
+                10,
+                15,
+                30,
+                60,
+                300,
+                600,
+                900,
+                1800,
+                3600,
+                86400,
+                2419200,
+                31536000
+            ],
+            "values": [
+                [
+                    31536000,
+                    "{YYYY}",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    1
+                ],
+                [
+                    2419200,
+                    "{MMM}",
+                    "\n{YYYY}",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    1
+                ],
+                [
+                    86400,
+                    "{DD}.{MM}",
+                    "\n{YYYY}",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    1
+                ],
+                [
+                    3600,
+                    "{H}",
+                    "\n{DD}.{MM}.{YY}",
+                    "",
+                    "\n{DD}.{MM}",
+                    "",
+                    "",
+                    "",
+                    1
+                ],
+                [
+                    60,
+                    "{H}:{mm}",
+                    "\n{DD}.{MM}.{YY}",
+                    "",
+                    "\n{DD}.{MM}",
+                    "",
+                    "",
+                    "",
+                    1
+                ],
+                [
+                    1,
+                    "{ss}s",
+                    "\n{DD}.{MM}.{YY} {H}:{mm}",
+                    "",
+                    "\n{DD}.{MM} {H}:{mm}",
+                    "",
+                    "\n{H}:{mm}",
+                    "",
+                    1
+                ],
+                [
+                    0.001,
+                    "{ss}.{fff}s",
+                    "\n{DD}.{MM}.{YY} {H}:{mm}",
+                    "",
+                    "\n{DD}.{MM} {H}:{mm}",
+                    "",
+                    "\n{H}:{mm}",
+                    "",
+                    1
+                ]
+            ]
+        },
+        "plugins": [
+            {
+                "plugin": "bands",
+                "enabled": true,
+                "from": "temperature",
+                "to": "pressure",
+                "fill": "rgba(19,135,185,0.30)"
+            },
+            {
+                "plugin": "wheelPanZoomPlugin",
+                "enabled": true,
+                "factor": 10
+            },
+            {
+                "plugin": "columnHighlightPlugin",
+                "enabled": true,
+                "highlight": "rgba(51,204,255,0.30)"
+            },
+            {
+                "plugin": "legendAsTooltipPlugin",
+                "enabled": false,
+                "text": "rgba(0,0,0,0.85)",
+                "background": "rgba(194,255,247,0.80)"
+            },
+            {
+                "plugin": "keepZoomLevelPlugin",
+                "enabled": true,
+                "panWithData": true,
+                "defaultZoom": 1,
+                "defaultZoomPeriod": 86400
+            },
+            {
+                "plugin": "wheelPanZoomPlugin",
+                "enabled": true,
+                "factor": 0.75
+            }
+        ],
+        "dataPlugins": [
+            {
+                "plugin": "limitColumns",
+                "enabled": true,
+                "columns": 100000,
+                "limitColumnsEvery": 12,
+                "limitColumnsPeriods": 3600
+            },
+            {
+                "plugin": "limitTime",
+                "enabled": true,
+                "last": 1,
+                "period": 2678400,
+                "limitTimeEvery": 1,
+                "limitTimePeriods": 86400,
+                "checkEvery": 0
+            },
+            {
+                "plugin": "cleanTable",
+                "enabled": false,
+                "cleanEvery": 1,
+                "cleanPeriod": 3600
+            },
+            {
+                "plugin": "reduceData",
+                "enabled": true,
+                "older": 1,
+                "threshold": 86400,
+                "span": 5,
+                "periods": 60,
+                "applyTo": [
+                    "temperature",
+                    "pressure"
+                ],
+                "method": "average",
+                "resultAt": 2
+            },
+            {
+                "plugin": "reduceData",
+                "enabled": true,
+                "older": 5,
+                "threshold": 86400,
+                "span": 30,
+                "periods": 60,
+                "applyTo": [
+                    "temperature",
+                    "pressure"
+                ],
+                "method": "average",
+                "resultAt": 2
+            },
+            {
+                "plugin": "reduceData",
+                "enabled": true,
+                "older": 10,
+                "threshold": 86400,
+                "span": 1,
+                "periods": 3600,
+                "applyTo": [
+                    "temperature",
+                    "pressure"
+                ],
+                "method": "average",
+                "resultAt": 2
+            }
+        ],
+        "dataStore": {
+            "context": "node",
+            "store": "file"
+        },
+        "debugServer": true,
+        "debugClient": true,
+        "spaceForTitle": "50",
+        "spaceForLegend": "0",
+        "x": 590,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ba2380e0.4c50f",
+        "type": "inject",
+        "z": "db39bbbe01b608ed",
+        "name": "",
+        "props": [
+            {
+                "p": "timestamp",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "initialValue",
+                "v": "20",
+                "vt": "num"
+            },
+            {
+                "p": "range",
+                "v": "[-10,35]",
+                "vt": "json"
+            },
+            {
+                "p": "variation",
+                "v": "1",
+                "vt": "num"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "temperature",
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "205fbb45.c175f4"
+            ]
+        ]
+    },
+    {
+        "id": "205fbb45.c175f4",
+        "type": "function",
+        "z": "db39bbbe01b608ed",
+        "name": "randomize",
+        "func": "var value = context.get(msg.topic) || msg.initialValue;\nvalue += Math.random()*msg.variation-(msg.variation/2);\nif (value<msg.range[0]) value = msg.range[0];\nif (value>msg.range[1]) value = msg.range[1];\ncontext.set(msg.topic,value);\nmsg.payload=value;\nnode.status({fill:\"green\",shape:\"dot\",text:`${msg.topic}=${value.toFixed(2)}`});\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 100,
+        "wires": [
+            [
+                "7609eb8c228cf217",
+                "28d7b6cd76413467"
+            ]
+        ]
+    },
+    {
+        "id": "389dc09f4c0f5f89",
+        "type": "debug",
+        "z": "db39bbbe01b608ed",
+        "name": "basic switch",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 590,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "64232a9ea667c777",
+        "type": "inject",
+        "z": "db39bbbe01b608ed",
+        "name": "",
+        "props": [
+            {
+                "p": "timestamp",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "initialValue",
+                "v": "1000",
+                "vt": "num"
+            },
+            {
+                "p": "range",
+                "v": "[955,1060]",
+                "vt": "json"
+            },
+            {
+                "p": "variation",
+                "v": "1",
+                "vt": "num"
+            }
+        ],
+        "repeat": "15",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "pressure",
+        "x": 170,
+        "y": 180,
+        "wires": [
+            [
+                "205fbb45.c175f4"
+            ]
+        ]
+    },
+    {
+        "id": "4ebcbd10cd110a30",
+        "type": "ui_switch",
+        "z": "db39bbbe01b608ed",
+        "name": "",
+        "label": "Pump",
+        "tooltip": "",
+        "group": "e8592788a2921318",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "pump",
+        "topicType": "str",
+        "style": "",
+        "onvalue": "1",
+        "onvalueType": "num",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "0",
+        "offvalueType": "num",
+        "officon": "",
+        "offcolor": "",
+        "animate": false,
+        "x": 150,
+        "y": 240,
+        "wires": [
+            [
+                "7609eb8c228cf217",
+                "389dc09f4c0f5f89"
+            ]
+        ]
+    },
+    {
+        "id": "28d7b6cd76413467",
+        "type": "debug",
+        "z": "db39bbbe01b608ed",
+        "name": "basic data",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 590,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "e8592788a2921318",
+        "type": "ui_group",
+        "name": "Basics",
+        "tab": "3c1f8373e77c2cdd",
+        "order": 1,
+        "disp": true,
+        "width": "20",
+        "collapse": true
+    },
+    {
+        "id": "3c1f8373e77c2cdd",
+        "type": "ui_tab",
+        "name": "uPlot",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]
