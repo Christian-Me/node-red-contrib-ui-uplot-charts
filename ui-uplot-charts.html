@@ -1,5 +1,5 @@
 <script type="text/javascript">
-    const defaultSeries = {show:true, spanGaps:true, forward: false, width: 1, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)'}
+    const defaultSeries = {show:true, spanGaps:true, forward: false, width: 2, dash: [], stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)'}
     const defaultAxes = {
         show:true, width: 1, label:'unnamed', stroke:'rgba(127, 127, 127, 0.8)',
         grid: {show:true, stroke:'rgba(127, 127, 127, 0.8)', width: 1, dash: [1,5]},
@@ -206,12 +206,12 @@
             var node = this;
             uplotGetConfig(node,'series', undefined, ( (data) => {
                     console.log('uplotGetConfig series', data);
-                    Object.keys(data).forEach(item => {
-                        addOrUpdateItem(node.series,data[item],'topic',defaultSeries,
+                    data.forEach(item => {
+                        addOrUpdateItem(node.series,item,'topic',defaultSeries,
                             (item,index) => {
                                 let color = (defaultColors[index]!==undefined) ? defaultColors[index] : '#ff0000';
                                 item.stroke = HEXtoRGB(color ,100);
-                                item.fill = HEXtoRGB(color,30);
+                                item.fill = HEXtoRGB(color,0);
                                 item.topicReadOnly = true;
                             }
                         );
