@@ -1,1 +1,285 @@
-[{"id":"558ce35223d5acdd","type":"group","z":"db39bbbe01b608ed","name":"noConfig demo","style":{"label":true},"nodes":["6dbde3f3d37cb1aa","aa4fc90304e4c9f4","fbfc4c99407927f1","c8d5dc5a0764d853"],"x":34,"y":879,"w":632,"h":162},{"id":"6dbde3f3d37cb1aa","type":"inject","z":"db39bbbe01b608ed","g":"558ce35223d5acdd","name":"","props":[{"p":"timestamp","v":"","vt":"date"},{"p":"topic","vt":"str"},{"p":"initialValue","v":"1000","vt":"num"},{"p":"range","v":"[955,1060]","vt":"json"},{"p":"variation","v":"1","vt":"num"}],"repeat":"15","crontab":"","once":true,"onceDelay":0.1,"topic":"pressure","x":150,"y":1000,"wires":[["fbfc4c99407927f1"]]},{"id":"aa4fc90304e4c9f4","type":"inject","z":"db39bbbe01b608ed","g":"558ce35223d5acdd","name":"","props":[{"p":"timestamp","v":"","vt":"date"},{"p":"topic","vt":"str"},{"p":"initialValue","v":"20","vt":"num"},{"p":"range","v":"[-10,35]","vt":"json"},{"p":"variation","v":"1","vt":"num"}],"repeat":"10","crontab":"","once":true,"onceDelay":0.1,"topic":"temperature","x":160,"y":920,"wires":[["fbfc4c99407927f1"]]},{"id":"fbfc4c99407927f1","type":"function","z":"db39bbbe01b608ed","g":"558ce35223d5acdd","name":"randomize","func":"var value = context.get(msg.topic) || msg.initialValue;\nvalue += Math.random()*msg.variation-(msg.variation/2);\nif (value<msg.range[0]) value = msg.range[0];\nif (value>msg.range[1]) value = msg.range[1];\ncontext.set(msg.topic,value);\nmsg.payload=value;\nnode.status({fill:\"green\",shape:\"dot\",text:`${msg.topic}=${value.toFixed(2)}`});\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","libs":[],"x":370,"y":920,"wires":[["c8d5dc5a0764d853"]]},{"id":"c8d5dc5a0764d853","type":"ui_uplot-charts","z":"db39bbbe01b608ed","g":"558ce35223d5acdd","group":"dc8da0ad47761ea7","order":0,"width":0,"height":0,"name":"","title":"","series":[{"topic":"pressure","label":"pressure","scale":null,"stroke":"rgba(31,119,180,1.00)","width":1,"dash":[],"path":"linear","fill":"rgba(31,119,180,0.30)","spanGaps":true,"show":true,"forward":false},{"topic":"temperature","label":"temperature","scale":null,"stroke":"rgba(174,199,232,1.00)","width":1,"dash":[],"path":"linear","fill":"rgba(174,199,232,0.30)","spanGaps":true,"show":true,"forward":false}],"scales":[],"axes":[],"axesX":{},"plugins":[],"dataPlugins":[],"dataStore":{"context":"node","store":"memory"},"debugServer":false,"debugClient":false,"spaceForTitle":"50","spaceForLegend":"50","x":570,"y":920,"wires":[[]]},{"id":"dc8da0ad47761ea7","type":"ui_group","name":"uplot no Config","tab":"195c2d29d75bfb35","order":1,"disp":true,"width":"12","collapse":true},{"id":"195c2d29d75bfb35","type":"ui_tab","name":"uPlot no config","icon":"dashboard","disabled":false,"hidden":false}]
+[
+    {
+        "id": "558ce35223d5acdd",
+        "type": "group",
+        "z": "db39bbbe01b608ed",
+        "name": "noConfig demo",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "6dbde3f3d37cb1aa",
+            "aa4fc90304e4c9f4",
+            "fbfc4c99407927f1",
+            "c8d5dc5a0764d853",
+            "adf08ee9fe6d2e56"
+        ],
+        "x": 54,
+        "y": 859,
+        "w": 632,
+        "h": 162
+    },
+    {
+        "id": "6dbde3f3d37cb1aa",
+        "type": "inject",
+        "z": "db39bbbe01b608ed",
+        "g": "558ce35223d5acdd",
+        "name": "",
+        "props": [
+            {
+                "p": "timestamp",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "initialValue",
+                "v": "1000",
+                "vt": "num"
+            },
+            {
+                "p": "range",
+                "v": "[955,1060]",
+                "vt": "json"
+            },
+            {
+                "p": "variation",
+                "v": "1",
+                "vt": "num"
+            },
+            {
+                "p": "label",
+                "v": "Pressure",
+                "vt": "str"
+            }
+        ],
+        "repeat": "15",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "pressure",
+        "x": 170,
+        "y": 940,
+        "wires": [
+            [
+                "fbfc4c99407927f1"
+            ]
+        ]
+    },
+    {
+        "id": "aa4fc90304e4c9f4",
+        "type": "inject",
+        "z": "db39bbbe01b608ed",
+        "g": "558ce35223d5acdd",
+        "name": "",
+        "props": [
+            {
+                "p": "timestamp",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "initialValue",
+                "v": "20",
+                "vt": "num"
+            },
+            {
+                "p": "range",
+                "v": "[-10,35]",
+                "vt": "json"
+            },
+            {
+                "p": "variation",
+                "v": "1",
+                "vt": "num"
+            },
+            {
+                "p": "label",
+                "v": "Temperature",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "temperature",
+        "x": 180,
+        "y": 900,
+        "wires": [
+            [
+                "fbfc4c99407927f1"
+            ]
+        ]
+    },
+    {
+        "id": "fbfc4c99407927f1",
+        "type": "function",
+        "z": "db39bbbe01b608ed",
+        "g": "558ce35223d5acdd",
+        "name": "randomize",
+        "func": "var value = context.get(msg.topic) || msg.initialValue;\nvalue += Math.random()*msg.variation-(msg.variation/2);\nif (value<msg.range[0]) value = msg.range[0];\nif (value>msg.range[1]) value = msg.range[1];\ncontext.set(msg.topic,value);\nmsg.payload=value;\nnode.status({fill:\"green\",shape:\"dot\",text:`${msg.topic}=${value.toFixed(2)}`});\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 940,
+        "wires": [
+            [
+                "c8d5dc5a0764d853"
+            ]
+        ]
+    },
+    {
+        "id": "c8d5dc5a0764d853",
+        "type": "ui_uplot-charts",
+        "z": "db39bbbe01b608ed",
+        "g": "558ce35223d5acdd",
+        "group": "dc8da0ad47761ea7",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "title": "uPlot no config",
+        "series": [
+            {
+                "show": true,
+                "spanGaps": true,
+                "forward": false,
+                "width": 2,
+                "dash": [],
+                "stroke": "rgba(31,119,180,1.00)",
+                "fill": "rgba(31,119,180,0.00)",
+                "topicReadOnly": true,
+                "band": false,
+                "label": "Pressure",
+                "path": "linear",
+                "topic": "pressure"
+            },
+            {
+                "show": true,
+                "spanGaps": true,
+                "forward": false,
+                "width": 2,
+                "dash": [],
+                "stroke": "rgba(174,199,232,1.00)",
+                "fill": "rgba(174,199,232,0.00)",
+                "topicReadOnly": true,
+                "band": false,
+                "label": "Temperature",
+                "path": "linear",
+                "topic": "temperature"
+            },
+            {
+                "show": true,
+                "spanGaps": true,
+                "forward": false,
+                "width": 2,
+                "dash": [],
+                "stroke": "rgba(255,127,14,1.00)",
+                "fill": "rgba(255,127,14,0.00)",
+                "topicReadOnly": true,
+                "band": false,
+                "label": "Value",
+                "path": "linear",
+                "topic": "value"
+            }
+        ],
+        "scales": [],
+        "axes": [],
+        "axesX": {},
+        "plugins": [],
+        "dataPlugins": [],
+        "dataStore": {
+            "context": "node",
+            "store": "memory"
+        },
+        "debugServer": false,
+        "debugClient": false,
+        "spaceForTitle": "50",
+        "spaceForLegend": "50",
+        "x": 590,
+        "y": 940,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "adf08ee9fe6d2e56",
+        "type": "inject",
+        "z": "db39bbbe01b608ed",
+        "g": "558ce35223d5acdd",
+        "name": "",
+        "props": [
+            {
+                "p": "timestamp",
+                "v": "",
+                "vt": "date"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "initialValue",
+                "v": "500",
+                "vt": "num"
+            },
+            {
+                "p": "range",
+                "v": "[300,700]",
+                "vt": "json"
+            },
+            {
+                "p": "variation",
+                "v": "10",
+                "vt": "num"
+            },
+            {
+                "p": "label",
+                "v": "Value",
+                "vt": "str"
+            }
+        ],
+        "repeat": "15",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "value",
+        "x": 160,
+        "y": 980,
+        "wires": [
+            [
+                "fbfc4c99407927f1"
+            ]
+        ]
+    },
+    {
+        "id": "dc8da0ad47761ea7",
+        "type": "ui_group",
+        "name": "uplot no Config",
+        "tab": "195c2d29d75bfb35",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": true
+    },
+    {
+        "id": "195c2d29d75bfb35",
+        "type": "ui_tab",
+        "name": "uPlot: no config",
+        "icon": "dashboard",
+        "order": 2,
+        "disabled": false,
+        "hidden": false
+    }
+]
