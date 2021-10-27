@@ -40,6 +40,7 @@ The goal is to develop a dashboard chart node somewhere between the default char
 * changing the data storage results in loss of all previous data.
 * new scales are not available in existing series. Reopen config as a workaround
 * forward values sometimes have a glitch after deploy forwarding the wrong state.
+* limit time does not update chart
 - [X] reorder of series seams not to work as planned (fixed - to be tested)
 
 ## Features planned for the future (in no particular order):
