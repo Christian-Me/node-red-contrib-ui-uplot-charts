@@ -220,11 +220,11 @@ module.exports = function(RED) {
                 (config.dataStore.context === 'flow') ? this.context().flow :
                 this.context();
             
-            console.log(RED.settings.contextStorage);
+            console.log(RED.settings.contextStorage,config.dataStore.store);
             var contextId = config.dataStore.value || config.id.replace('.','');
             var contextStore = (!RED.settings.contextStorage) ?
                     undefined : 
-                    (!config.dataStore.store || !Object.keys(!RED.settings.contextStorage).includes(config.dataStore.store)) ?
+                    (!config.dataStore.store || !Object.keys(RED.settings.contextStorage).includes(config.dataStore.store)) ?
                         RED.settings.contextStorage.default :
                         config.dataStore.store;
             var contextData = contextObject.get(contextId,contextStore);
