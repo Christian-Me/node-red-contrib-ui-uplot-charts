@@ -118,7 +118,8 @@
                     "name":"Name",
                     "spaceForTitle":"Title",
                     "spaceForLegend":"Legend",
-                    "px":"px"
+                    "px":"px",
+                    "palette":"Palette"
                 },
                 "debug":{
                     "&nbsp;":"&nbsp;",

@@ -186,7 +186,8 @@
             debugServer: {value: false},
             debugClient: {value: false},
             spaceForTitle: {value: 50},
-            spaceForLegend: {value: 50}
+            spaceForLegend: {value: 50},
+            defaultColors: {value: defaultColors}
         },
 
         inputs:1,
@@ -625,6 +626,11 @@
             mainContainer.setGroup('appearance',true, 'form-row');
                 mainContainer.addClassicLabel('name');
                 mainContainer.addInput('name','text',this.name,contentWidth+'%','name');
+            mainContainer.closeGroup();
+            mainContainer.addElement('hr');
+            mainContainer.setGroup('appearance',true, 'form-row');
+                mainContainer.addClassicLabel('palette');
+                mainContainer.addTypedInput('defaultColors',["json"],JSON.stringify(this.defaultColors || defaultColors),'json',contentWidth+'%');
             mainContainer.closeGroup();
             mainContainer.setGroup('appearance',true, 'form-row');
                 mainContainer.addClassicLabel('spaceForTitle');
@@ -1274,6 +1280,7 @@
             if (typeof node.dataStore === 'string') {
                 node.dataStore={context:'node', store: node.dataStore};
             }
+            node.uiListElements.main.getValue('defaultColors',node);
         },
         oneditresize: function(size) {
             // uplotResizeList();

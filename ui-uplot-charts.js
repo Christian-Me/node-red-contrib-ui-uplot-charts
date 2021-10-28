@@ -132,7 +132,7 @@ module.exports = function(RED) {
             }
         }
         
-        const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
+        var defaultColors = config.defaultColors || ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
         const defaultSeries = {show:true, spanGaps:true, band: false, width: 2, dash: [], label:'unnamed',stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0)',path:'linear'}
         const defaultAxesX12h = {
             space: 40,
