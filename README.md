@@ -252,6 +252,11 @@ Plugins are loaded to the dashboard "when used only" as modules.
 
 ## Changelog
 
+### 0.0.4
+- fix if no `contextStorage` is defined in `settings.js`
+### 0.0.3
+- several bugfixes
+### 0.0.2
+- several bugfixes
 ### 0.0.1
 - initial alpha release
-

@@ -219,10 +219,14 @@ module.exports = function(RED) {
                 (config.dataStore.context === 'global') ? this.context().global :
                 (config.dataStore.context === 'flow') ? this.context().flow :
                 this.context();
+            
+            console.log(RED.settings.contextStorage);
             var contextId = config.dataStore.value || config.id.replace('.','');
-            var contextStore = (!config.dataStore.store || Object.keys(!RED.settings.contextStorage).includes(config.dataStore.store)) ?
-                    RED.settings.contextStorage.default :
-                    config.dataStore.store;
+            var contextStore = (!RED.settings.contextStorage) ?
+                    undefined : 
+                    (!config.dataStore.store || !Object.keys(!RED.settings.contextStorage).includes(config.dataStore.store)) ?
+                        RED.settings.contextStorage.default :
+                        config.dataStore.store;
             var contextData = contextObject.get(contextId,contextStore);
             if (contextData === undefined) {
                 _node?.log(`data storage initialized context:"${config.dataStore.context}" property:"${contextId}" store:"${contextStore}"`);
@@ -266,7 +270,7 @@ module.exports = function(RED) {
             contextData._tableContent=chartTable.remapRows(config.series.map(row => row.topic));
             contextData._tableRowMap=chartTable.getRowMap(); // sync in row map
             
-            _node?.log(`restored ${chartTable.getWidth()} columns and ${chartTable.getHeight()} rows from context:"${config.dataStore.context}" property:"${contextId}" store:"${contextStore}" module:"${RED.settings.contextStorage[contextStore].module}"`);
+            _node?.log(`restored ${chartTable.getWidth()} columns and ${chartTable.getHeight()} rows from context:"${config.dataStore.context}" property:"${contextId}" store:"${contextStore}" module:"${RED.settings.contextStorage?.[contextStore].module}"`);
             result = chartTable.getSizes();
             _node?.log(`${result.cellsUsed} in ${result.columns} ${result.memoryString} (${result.ratioPercent}) `); 
             
@@ -428,6 +432,7 @@ module.exports = function(RED) {
                     },
 
                     convert: function(value,fullDataset,msg,step) {
+                        let timestamp = (msg.timestamp) ? msg.timestamp/1000 : Date.now()/1000;
                         let newRowFlag = false;
                         // _console?.log('convert',msg.payload);
                         if (msg.payload==='R') {
@@ -446,8 +451,10 @@ module.exports = function(RED) {
                             },
                             newPoint: {},
                         }
+                        var stateValue;
+                        var stateResult = [];
                         if (fullDataset) conversion.updatedValues = fullDataset;
-                        if (msg.topic=='') {
+                        if (!msg.topic || msg.topic=='') {
                             _node?.warn('Send a unique topic with your data to identify the row. Using "unknown" for now.');
                             msg.topic = "unknown";
                         }
@@ -469,10 +476,6 @@ module.exports = function(RED) {
                             conversion.newPoint.newConfig={};
                             conversion.newPoint.newConfig.series = contextData._config.series;
                         }
-
-                        var stateValue;
-                        var stateResult = [];
-                        let timestamp = (msg.timestamp) ? msg.timestamp/1000 : Date.now()/1000;
                         
                         try {
                             stateValue = RED.util.getMessageProperty(msg, config.stateField || "payload");
@@ -481,19 +484,19 @@ module.exports = function(RED) {
                             _node?.warn('No or improper data received!')
                             return;
                         }
-                        let seriesIndex = -1;
+                        // let seriesIndex = -1;
                         switch (typeof stateValue) {
                             case 'string': 
                                 stateValue = parseFloat(stateValue);
                             case 'number':
                                 stateResult.push({
-                                    id:msg.topic,
+                                    id: (newRowFlag) ? msg.topic : undefined,
                                     timestamp:timestamp,
                                     value:stateValue,
-                                    index: chartTable.getRowMap()[msg.topic]
+                                    index: chartTable.getRowIndex(msg.topic)
                                 })
-                                seriesIndex = contextData._config.series.findIndex(value =>  value.topic === msg.topic);
-                                if (seriesIndex>0) contextData._config.series[seriesIndex].topicReadOnly = true;
+                                // seriesIndex = contextData._config.series.findIndex(value =>  value.topic === msg.topic);
+                                // if (seriesIndex>0) contextData._config.series[seriesIndex].topicReadOnly = true;
                                 break;
                             case 'object': 
                                 if (Array.isArray(stateValue)){
@@ -557,7 +560,7 @@ module.exports = function(RED) {
                         } else {
                             _console?.log('no Message',msg,fullDataset)
                         }
-                        
+                        delete newMsg.topic
                         return { msg: newMsg };
                     },
 
