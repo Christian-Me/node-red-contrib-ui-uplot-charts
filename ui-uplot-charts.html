@@ -1,9 +1,10 @@
 <script type="text/javascript">
-    const defaultSeries = {show:true, spanGaps:true, forward: false, width: 2, dash: [], stroke:'rgba(255, 0, 0, 1)',fill:'rgba(255, 0, 0, 0.3)'}
+    const defaultSeries = {show:true, spanGaps:true, forward: false, width: 2, dash: [], stroke:'#ff0000',fill:'#ff00004d',
+        points:{show: true, space: 10, width: 1, size: 10}}
     const defaultAxes = {
-        show:true, width: 1, label:'unnamed', stroke:'rgba(127, 127, 127, 0.8)',
-        grid: {show:true, stroke:'rgba(127, 127, 127, 0.8)', width: 1, dash: [1,5]},
-        ticks: {show:true, stroke:'rgba(127, 127, 127, 0.8)', width: 2, dash: [], size: 10}
+        show:true, width: 1, label:'unnamed', stroke:'#7f7f7fcc',
+        grid: {show:true, stroke:'#7f7f7fcc', width: 1, dash: [1,5]},
+        ticks: {show:true, stroke:'#7f7f7fcc', width: 2, dash: [], size: 10}
     };
     const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
     const defaultAxesX =  {
@@ -59,6 +60,7 @@
     }
 
     function HEXtoRGB (hexString, alpha, alphaType = 'ALPHA100') {
+        if (hexString===undefined && alpha===undefined) return undefined;
         let components = [];
 
         for (let i = 1; i<hexString.length; i += 2) {
@@ -187,7 +189,8 @@
             debugClient: {value: false},
             spaceForTitle: {value: 50},
             spaceForLegend: {value: 50},
-            defaultColors: {value: defaultColors}
+            seriesFilter: {value: 'series-all'},
+            hideFiltered: {value: false}
         },
 
         inputs:1,
@@ -254,403 +257,156 @@
             }
             const labelWidth = "20%";
             const contentWidth = 78; // %
-            /**
-             * Set the value for the given object for the given path
-             * where the path can be a nested key represented with dot notation
-             * https://codereview.stackexchange.com/questions/194338/safely-setting-object-properties-with-dot-notation-strings-in-javascript
-             *
-             * @param {object} obj   The object on which to set the given value
-             * @param {string} path  The dot notation path to the nested property where the value should be set
-             * @param {mixed}  value The value that should be set
-             * @return {mixed}
-             *
-             */
-            function setProperty(obj, path, value) {
-                // protect against being something unexpected
-                obj = typeof obj === 'object' ? obj : {};
-                // split the path into and array if its not one already
-                var keys = Array.isArray(path) ? path : path.split('.');
-                // keep up with our current place in the object
-                // starting at the root object and drilling down
-                var curStep = obj;
-                // loop over the path parts one at a time
-                // but, dont iterate the last part,
-                for (var i = 0; i < keys.length - 1; i++) {
-                    // get the current path part
-                    var key = keys[i];
-
-                    // if nothing exists for this key, make it an empty object or array
-                    if (!curStep[key] && !Object.prototype.hasOwnProperty.call(curStep, key)){
-                        // get the next key in the path, if its numeric, make this property an empty array
-                        // otherwise, make it an empty object
-                        var nextKey = keys[i+1];
-                        var useArray = /^\+?(0|[1-9]\d*)$/.test(nextKey);
-                        curStep[key] = useArray ? [] : {};
-                    }
-                    // update curStep to point to the new level
-                    curStep = curStep[key];
+            var getContrastYIQ = function (color){
+                    let r = parseInt(color.substr(1,2),16);
+                    let g = parseInt(color.substr(3,2),16);
+                    let b = parseInt(color.substr(5,2),16);
+                    return Math.floor(((r*299)+(g*587)+(b*114))/1000);
                 }
-                // set the final key to our value
-                var finalStep = keys[keys.length - 1];
-                curStep[finalStep] = value;
-                return value;
-            };
-
-
-            function UiElements (root,id) {
-                this.root = root;
-                this.id = id;
-                this.uiElements = {};
-                this._groupId = '';
-                this._groups = [];
-                this._container= null;
-                this._parentContainer = null;
-                this._lastId = '';
-                this.setRow = function(row) {
-                    this._groupId = '';
-                    this._container=row;
-                    // this._container.css('display','inline-block');
-                    return this;
-                }
-                this.setGroup = function(groupId,show=true,cssClass='') {
-                    this._groupId = groupId;
-                    if (!this._groups.find(element => id === groupId)) { this._groups.push({
-                            id:groupId,
-                            parent:this._container
-                        })
-                    };
-                    let classClassString = (cssClass) ? `class="${cssClass}" ` : '';
-                    this._parentContainer = this._container;
-                    this._container = $(`<div ${classClassString}id="node-group-${this.id}-${groupId}" style="${(show)? '' : 'display:none'}">`).appendTo(this._container);
-                }
-                this.closeGroup = function() {
-                    this._container=this._parentContainer;
-                    this._parentContainer = null;
-                }
-                this.setGroupVisibility = function(element, parentId = '', groupId = '') {
-                    let children = element.parent().find(`#node-group-${this.id}-${parentId}`).children();
-                    children.fadeOut(200);
-                    children.parent().find(`#node-group-${this.id}-${groupId}`).fadeIn(200);
-                }
-                this.addEvent = function(onEvent = "click", event = null, id) {
-                    if (id === undefined) id = this._lastId;
-                    this.uiElements[id].element.on(onEvent,( function() { 
-                        event($(this));
-                    }))
-                }
-                this.getElements = function() {
-                    return this.uiElements;
-                }
-                this.getElement = function(container,id) {
-                    return container.find(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
-                    return $(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
-                }
-                this.addClassicLabel = function(label, icon = '') {
-                    let forId = `node-input-${(this.id!=='') ? this.id+'-' : ''}${label}`;
-                    label = node._(this.root+"."+this.id+".label." + ((this._groupId!=='') ? this._groupId+'.' : '') + label);
-                    icon = icon ? `<i class="${icon}"></i>` : '';
-                    $(`<label for="${forId}">${icon}<span>${label}</span></label>`)
-                        .appendTo(this._container);
-                }
-                this.addLabel = function(label,width = labelWidth) {
-                    $(`<div><span>${node._(this.root+"."+this.id+".label." + ((this._groupId!=='') ? this._groupId+'.' : '') + label)}</span></div>`).css('display','inline-block').css('width',width).appendTo(this._container);
-                }
-                this.addInput = function(id,type,value, width = contentWidth, configId = '') {
-                    let def = {
-                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
-                        style: `width:${width};`,
-                        id: (configId ? `node-input-${configId}` : undefined),
-                        placeholder: node._(this.root+"."+this.id+".placeholder." + ((this._groupId!=='') ? this._groupId+'.' : '') + id)
-                    }
-                    switch (typeof type) {
-                        case 'string' :
-                            def.type = type;
-                            break;
-                        case 'object':
-                            Object.keys(type).forEach(key => {
-                                def[key] = type[key];
-                            })
-                    }
-                    if (this.uiElements[id]===undefined) this.uiElements[id]={id,def:def};
-                    this.uiElements[id].element = $('<input/>', def).appendTo(this._container);
-                    if (value !==undefined) this.uiElements[id].element.val(value);
-                    return this.uiElements[id].element;
-                }
-                this.addTypedInput = function(id,types,value,type,width = contentWidth, change = null) {
-                    this.uiElements[id]={id,def:{
-                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
-                        style: `width:${width};`,
-                        type: 'text',
-                        types: types
-                    }}
-                    this.uiElements[id].typedInput=true;
-                    switch (type) {
-                        case 'selected': // convert to comma separated string if necessary
-                            value = (Array.isArray(value)) ? value.toString() : value;
-                            break;
-                    }
-                    //console.log('addTypedInput', {type,value});
-
-                    let element = this.uiElements[id].element = $('<input/>', this.uiElements[id].def)
-                        .appendTo(this._container)
-                        .typedInput({types: types})
-                        .typedInput('width',width)
-                        .typedInput('type',type)
-                        .typedInput('value',value);
-
-                    element.prop('_lastSelectedValue',value);
-
-                    if (typeof change === "function") {
-                        element.on('change',change);
-                    }
-                }
-                this.addSelect = function(id,choices,value, width = contentWidth, valueType = "string", props = {}) {
-                    let def = {
-                        class: `node-input-${this.id}-${id.replaceAll('.','-')}`,
-                        style: `width:${width};`,
-                        type: 'select',
-                        valueType
-                    }
-                    Object.keys(props).forEach(key => def[key] = props[key]);
-                    this._lastId = id;
-                    if (this.uiElements[id]===undefined) this.uiElements[id]={id,def:def};
-                    let element = $('<select/>', def).appendTo(this._container);
-                    choices.forEach( (item,index) => {
-                        switch (typeof item) { 
-                            case 'string': 
-                                element.append($('<option></option>').val(item).text(item)); 
-                                break;
-                            case 'object': 
-                                if (item.hasOwnProperty('i18n')) {
-                                    element.append($('<option></option>')
-                                        .val((item.value!==undefined) ? item.value : node._(this.root+'.'+this.id+'.select.'+item.i18n+'.'+index))
-                                        .text(node._(this.root+'.'+this.id+'.select.'+item.i18n+'.'+index))); 
-                                    break;
-                                }
-                                if (item.hasOwnProperty('text')) {
-                                    element.append($('<option></option>').val(item.value).text(item.text)); 
-                                    break;
-                                }
-                                break;
-                        }
-                    })
-                    if (value !==undefined) {
-                        element.val(value);
-                    } else if (choices[0] !== undefined) {
-                        if (typeof choices[0] === 'string') {
-                            element.val(choices[0]);
-                        } else {
-                            element.val(choices[0].value);
-                        }
-                    }
-                    this.uiElements[id].element = element;
-                    return element;
-                };
-                this.addElement = function(type) {
-                    switch (type) {
-                        case 'br': $('<br>').appendTo(this._container); break;
-                        case 'hr': $('<hr>').appendTo(this._container); break;
-                    }  
-                };
-                this.addButton = function(id,label, width = contentWidth, onEvent = "click", event = null) {
-                    let button = $(`<a id="node-button-${this.id}-${id}" class="red-ui-button">${node._(this.root+"."+this.id+".label."+label)}</a>`).css('width',width);
-                    if (event!== null) {
-                        button.on(onEvent,( () => { 
-                            event(button);
-                        }))
-                    }
-                    button.appendTo(this._container);
-                }
-                this.setInput = function(id,value) {
-                    let input = $(`.node-input-${this.id}-${id.replaceAll('.','-')}`);
-                    if (input.length>0) { // input or typed input
-                        if (input[0].className.search('typedInput') > 0) {
-                            input.typedInput('value',value);
-                        } else {
-                            input.val(value);    
-                        }
-                    } else { // button (via id)
-                        input = $(`#node-button-${this.id}-${id.replaceAll('.','-')}`);
-                        input[0].innerHTML = value;
-                    }
-                }
-                this.addProp = function (id,prop,value) {
-                    $(`.node-input-${this.id}-${id.replaceAll('.','-')}`).prop(prop,value);
-                };
-                this.setProp = function (id,prop,value) {
-                    this.uiElements[id]?.element?.prop(prop,value);
-                };
-                this.getValue = function(id,value) {
-                    var elements = this.uiElements;
-                    var node = this;
-                    var result;
-                    Object.keys(elements).forEach( key => {
-                        if (key===id) {
-                            let type = elements[key].def.type;
-                            if (elements[key].typedInput) type = 'typedInput';
-                            switch (type) {
-                                case 'select':
-                                    // console.log(cssKey,element.find(cssKey).val());
-                                    result = elements[key].element.val()
-                                    if (elements[key].def.valueType) {
-                                        switch (elements[key].def.valueType){
-                                            case 'integer':
-                                                result = parseInt(result);
-                                                break;
-                                        }
-                                    }
-                                    setProperty(value,key,result);
-                                    break;
-                                case 'text':
-                                    result = setProperty(value,key,elements[key].element.val());
-                                    if (elements[key].def.hasOwnProperty('types')) {
-                                        switch (elements[key].element.typedInput('type')) {
-                                            case 'json': setProperty(value,key,JSON.parse(result)); break;
-                                            case 'num':  setProperty(value,key,Number(result)); break;
-                                            case 'bool': setProperty(value,key,(result=='true') ? true : false); break;
-                                        };
-                                    }
-                                    return;
-                                case 'typedInput':
-                                    result = elements[key].element.typedInput('value');
-                                    let typedValue = elements[key].element.typedInput('value');
-                                    switch (elements[key].element.typedInput('type')) {
-                                        case 'global':
-                                        case 'flow':
-                                            result = {context : elements[key].element.typedInput('type'),typedValue}
-                                            result.value = typedValue.slice(typedValue.lastIndexOf(':')+1);
-                                            result.store = typedValue.slice(typedValue.indexOf('(')+1,typedValue.indexOf(')'));
-                                            break;
-                                        case 'json':
-                                            result=JSON.parse(typedValue);
-                                            break;
-                                    }
-                                    setProperty(value,key,result);
-                                    return;
-                            }   
-                        }
-                    });
-                };
-                this.save = function (values, saveAll = true, valueFilter = []) {
-                    if (values===undefined) values = [];
-                    var components = $(`#node-input-${this.id}-container`).editableList('items');
-                    var node = this;
-                    var elements = this.uiElements;
-                    values.length = 0;
-                    components.each(function (i) {
-                        var element = $(this);
-                        var c = {};
-                        var result;
-                        Object.keys(elements).forEach( key => {
-                            let keys = key.split('.');
-                            let lastKey = keys[keys.length-1];
-                            let cssKey = `.node-input-${node.id}-${key.replaceAll('.','-')}`;
-                            let visible = element.find(cssKey).parent().css('display') !== 'none';
-                            if (visible || saveAll) {
-                                switch (elements[key].def.type) {
-                                    case 'select':
-                                        // console.log(cssKey,element.find(cssKey).val());
-                                        result = element.find(cssKey).val()
-                                        if (elements[key].def.valueType) {
-                                            switch (elements[key].def.valueType){
-                                                case 'integer':
-                                                    // console.log(cssKey,result);
-                                                    result = parseInt(result) || 0;
-                                                    break;
-                                            }
-                                        }
-                                        setProperty(c,key,result);
-                                        break;
-                                    case 'text':
-                                        result = setProperty(c,key,element.find(cssKey).val());
-                                        if (elements[key].def.hasOwnProperty('types')) {
-                                            // console.log('text',element.find(cssKey).typedInput('type'),result);
-                                            switch (element.find(cssKey).typedInput('type')) {
-                                                case 'json': setProperty(c,key,JSON.parse(result)); break;
-                                                case 'num':  setProperty(c,key,Number(result)); break;
-                                                case 'bool': setProperty(c,key,(result=='true') ? true : false); break;
-                                                case 'allSeries': setProperty(c,key,""); break;
-                                                case 'selected': setProperty(c,key,(result==='')? result : result.split(',')); break;
-                                            };
-                                        }
-                                        break;
-                                    case 'number':
-                                        if (!key.includes('Alpha')) { // all except Alpha as it's included in RGBA Colors
-                                            setProperty(c,key,Number(element.find(cssKey).val()));
-                                        }
-                                        break;
-                                    case 'checkbox':
-                                        setProperty(c,key,element.find(cssKey).prop('checked'));
-                                        break;
-                                    case 'color':
-                                        let id = key.substring(0,key.search('Color')).replaceAll('.','-');
-                                        let property = key.substring(0,key.search('Color'));
-                                        setProperty(c,property,HEXtoRGB(
-                                            element.find(`.node-input-${node.id}-${id}`+"Color").val(),
-                                            element.find(`.node-input-${node.id}-${id}`+"Alpha").val()
-                                        ));
-                                        break;
-                                    case 'typedInput': // only arrays!
-                                        //console.log("typedInput",element.find(cssKey).val())
-                                        result = setProperty(c,key,JSON.parse(element.find(cssKey).val()));
-                                        if (!Array.isArray(result)) setProperty(c,key,[]);
-                                        break;
-                                }
-                            }
-                        });
-                        values.push(c);
-                    });
-                }
-            };
 
             node.uiListElements = {
-                main : new UiElements("uplot","main"),
-                default : new UiElements("uplot","default"),
-                series : new UiElements("uplot","series"),
-                axes : new UiElements("uplot","axes"),
-                scales : new UiElements("uplot","scales"),
-                plugins : new UiElements("uplot","plugins"),
-                dataPlugins : new UiElements("uplot","dataPlugins"),
+                main : new configUiElements(node,"uplot","main"),
+                default : new configUiElements(node,"uplot","default"),
+                series : new configUiElements(node,"uplot","series"),
+                axes : new configUiElements(node,"uplot","axes"),
+                scales : new configUiElements(node,"uplot","scales"),
+                plugins : new configUiElements(node,"uplot","plugins"),
+                dataPlugins : new configUiElements(node,"uplot","dataPlugins"),
             }
-            if (!this.series) this.series = [];
-            if (!this.axes) this.axes=[];
-            if (!this.scales) this.scales=[{label:"X-Axes"}];
+            if (!this.series || this.series.length<1 || this.series.findIndex(value => value.topic==='#')<0 ) this.series.unshift({
+                topic:"#",show:true, spanGaps:true, forward: false, width: 2, dash: [], 
+                defaultStrokes : ['#1F77B4FF', '#AEC7E8FF', '#FF7F0EFF', '#2CA02CFF', '#98DF8AFF', '#D62728FF', '#FF9896FF', '#9467BDFF', '#C5B0D5FF'],
+                defaultFills: ['#1F77B41E', '#AEC7E81E', '#FF7F0E1E', '#2CA02C1E', '#98DF8A1E', '#D627281E', '#FF98961E', '#9467BD1E', '#C5B0D51E']
+            });
+            if (!this.axes || this.axes.length<1 || this.axes.findIndex(value => value.scale==='#')<0 ) this.axes.unshift({
+                show:true, width: 1, scale: '#', label:'', 
+                stroke:'#7f7f7fcc',
+                grid: {show:true, stroke:'#7f7f7fcc', width: 1, dash: [1,5]},
+                ticks: {show:true, stroke:'#7f7f7fcc', width: 2, dash: [], size: 10}
+            });
+            if (!this.scales || this.scales.length<1 || this.scales.findIndex(value => value.id==='#')<0 ) this.scales.unshift({
+                id:'#',
+                label: '',
+                auto: true
+            });
             if (!this.plugins) this.plugins=[];
             if (!this.dataPlugins) this.dataPlugins=[];
 
             let mainContainer = node.uiListElements.main.setRow($('#node-tab-general'));
             mainContainer.setGroup('appearance',true, 'form-row');
-                mainContainer.addClassicLabel('title');
+                mainContainer.addClassicLabel('title','fa fa-header');
                 mainContainer.addInput('title','text',this.title,contentWidth+'%','title');
             mainContainer.closeGroup();
             mainContainer.setGroup('appearance',true, 'form-row');
-                mainContainer.addClassicLabel('name');
+                mainContainer.addClassicLabel('name','fa fa-i-cursor');
                 mainContainer.addInput('name','text',this.name,contentWidth+'%','name');
             mainContainer.closeGroup();
             mainContainer.addElement('hr');
             mainContainer.setGroup('appearance',true, 'form-row');
-                mainContainer.addClassicLabel('palette');
-                mainContainer.addTypedInput('defaultColors',["json"],JSON.stringify(this.defaultColors || defaultColors),'json',contentWidth+'%');
-            mainContainer.closeGroup();
-            mainContainer.setGroup('appearance',true, 'form-row');
-                mainContainer.addClassicLabel('spaceForTitle');
+                mainContainer.addClassicLabel('spaceForTitle','fa fa-arrows-v');
                 mainContainer.addInput('spaceForTitle',{type:'number',min:0,max:200},this.spaceForTitle || 50,contentWidth/2+'%','spaceForTitle');
                 mainContainer.addClassicLabel('px');
             mainContainer.closeGroup();
             mainContainer.setGroup('appearance',true, 'form-row');
-                mainContainer.addClassicLabel('spaceForLegend');
+                mainContainer.addClassicLabel('spaceForLegend','fa fa-arrows-v');
                 mainContainer.addInput('spaceForLegend',{type:'number',min:0,max:200},this.spaceForLegend || 50,contentWidth/2+'%','spaceForLegend');
                 mainContainer.addClassicLabel('px');
             mainContainer.closeGroup();
-            mainContainer.setGroup('debug',true, 'form-row');
-                mainContainer.addClassicLabel('title');
+            mainContainer.setGroup('debug',true, {id:'form-row',label:'debug',collapsible:true, collapsed:true});
+                mainContainer.addClassicLabel('title','fa fa-bug');
                 mainContainer.addInput('debugServer',{type:'checkbox',checked: (this.debugServer!==undefined) ? this.debugServer : false},undefined,'5%','debugServer')
                 mainContainer.addClassicLabel('debugServer');
                 mainContainer.addInput('debugClient',{type:'checkbox',checked: (this.debugClient!==undefined) ? this.debugClient : false},undefined,'5%','debugClient')
                 mainContainer.addClassicLabel('debugClient');
             mainContainer.closeGroup();
 
+            // check event to enable/disable a input row
+            var checkboxChangeEvent = function (element) {
+                let nextElement=element.next();
+                let disabled = !element.prop('checked');
+                while (nextElement.length>0 && !nextElement.is('br')) {
+                    if (nextElement.is('input')) {
+                        if (nextElement.hasClass('red-ui-typedInput') && nextElement.typedInput) {
+                            nextElement.typedInput(disabled ? 'disable' : 'enable')
+                        } else {
+                            nextElement.prop('disabled',disabled);
+                        }
+                    }
+                    nextElement = nextElement.next();
+                }
+            }
 
+            // Series Tab
+            var filterOptions = ['series-all','series-label','series-stroke','series-points','series-fill','series-options']
+                .map((value,index) => { return {label:node._("uplot.default.select.singleFilters."+index),value}});
+            let interpolationOptions = ["linear", "points", "spline", "stepBefore", "stepAfter", "bars"]
+                .map(value => { return {i18n:'path',value}});
+
+            let seriesContainer = node.uiListElements.default.setRow($('#node-input-series-top'));
+            seriesContainer.setGroup('series-main',true, 'form-row');
+                seriesContainer.addClassicLabel('seriesFilter','fa fa-filter');
+                seriesContainer.addTypedInput('applyTo',[
+                    {
+                        value: "singleFilter",
+                        label:  node._("uplot.default.label.singleFilter"), 
+                        title:  node._("uplot.default.label.singleFilter"), 
+                        icon: "fa fa-bars",
+                        showLabel: false,
+                        multiple: false,
+                        options: filterOptions                        
+                    },{
+                        value: "multiFilter",
+                        label:  node._("uplot.default.label.multiFilter"), 
+                        title:  node._("uplot.default.label.multiFilter"), 
+                        icon: "fa fa-list-ul",
+                        showLabel: false,
+                        multiple: true,
+                        options: filterOptions                        
+                    }],
+                    this.seriesFilter || 'series-all',
+                    (this.seriesFilterType) ? this.seriesFilterType : 'showAll',
+                    contentWidth/2+'%',
+                    (event, type, value = "series-all") => {
+                        if (value === '') value = 'series-all';
+                        let element = $(event.target);
+                        let lastSelected = element.prop('_lastSelectedValue');
+                        console.log('changeSeriesFilter', {event, type, value, lastSelected});
+                        let switchState = function (option,state) {
+                            let container = $('#node-input-series-container').find(`.${option}`);
+                            let icons = $(container.prev())
+                            icons.each((index,element) => {
+                                $(element).css('display','block');
+                                const icons = ["fa fa-plus-square", "fa fa-minus-square"];
+                                $(element.firstChild).removeClass(icons[(state) ? 0 : 1]);
+                                $(element.firstChild).addClass(icons[(state) ? 1 : 0]);
+                            })
+                            container.css('display',state ? '' : 'none');
+                        }
+                        filterOptions.forEach(option => {
+                            var state = value.includes(option.value) || value.includes('series-all');
+                            switchState(option.value,state);
+                        });
+                        changeHideFiltered($('.node-input-default-hideFiltered'));
+                    }
+                );
+                seriesContainer.addInput('hideFiltered',{type:'checkbox',checked: (this.hideFiltered!==undefined) ?  this.hideFiltered : false},undefined,'5%')
+                var changeHideFiltered = function (event) {
+                    let hide = event.prop('checked');
+                    filterOptions.forEach(option => {
+                        let container = $('#node-input-series-container').find(`.${option.value}`);
+                        if (hide) {
+                            if (container.css('display')==='none') {
+                                console.log(container.prev().css('display'));
+                                container.prev().css('display', hide ? 'none' : 'block');
+                            }
+                        } else {
+                            container.prev().css('display', 'block');   
+                        }
+                    });
+                };
+                seriesContainer.addEvent('change',changeHideFiltered,'hideFiltered',true);
+                seriesContainer.addText('hideFiltered',contentWidth/2-10+'%');
+            seriesContainer.closeGroup();
 
             $('#node-input-series-container')
             .css('min-height','250px').css('min-width','400px')
@@ -672,97 +428,189 @@
                     scaleIds = tempScales.map(item => item.id);
 
                     var uiElements = node.uiListElements.series.setRow(row);
-                    // console.log('series before',data);
 
-                    uiElements.addLabel('topic');
-                    uiElements.addInput('topic','text',data.topic || '',contentWidth+'%');
-                    uiElements.addProp('topic','disabled',data.topicReadOnly);
+                    if (data.topic!=='#') {
+                        uiElements.addLabel('topic');
+                        uiElements.addInput('topic','text',data.topic || '',contentWidth+'%');
+                        uiElements.addProp('topic','disabled',data.topicReadOnly);
+                        uiElements.setGroup('series-label',true,{id:'series-label',label:'label',collapsible:true});
+                            uiElements.addLabel('label');
+                            uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
+                            uiElements.addText('&nbsp;','5%');
+                            uiElements.addLabel('scale',contentWidth/4-5+'%');
+                            uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');                    
+                            uiElements.addElement('br');
+                            uiElements.addLabel('legend');
+                            uiElements.addTypedInput('legend',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},
+                                 {value:"function",label:"Function",icon:"fa fa-code",
+                                    customValue: data.legend || `(self, rawValue) => {\n  return rawValue.toFixed(2);\n}`},
+                                ],
+                                data.legend || "default",
+                                data.legendType || "default",(contentWidth)+'%'
+                            );
+                            uiElements.addElement('br');
+                        uiElements.closeGroup();
+                        uiElements.setGroup('series-stroke',true,{id:'series-stroke',label:'stroke',collapsible:true});
+                            uiElements.addLabel('line');
+                            uiElements.addInput('stroke','color',data.stroke || defaultSeries.stroke,contentWidth+'%');
+                            /*
+                            uiElements.addTypedInput('stroke',
+                                [{value:"colorRGBA",label:"Colour RGBA", icon:"fa fa-tint", customValue: data.stroke || defaultSeries.stroke}],
+                                data.stroke || defaultSeries.stroke, "colorRGBA", (contentWidth)+'%',null,{hideTypeSelect: true, hideBorder: true}
+                            );
+                            */
+                            uiElements.addElement('br');
+                            uiElements.addText('&nbsp;');
+                            uiElements.addLabel('width',contentWidth/4-5+'%');
+                            uiElements.addInput('width',{type:'number',min:0,max:100},data.width || defaultSeries.width,contentWidth/4-5+'%')
+                            uiElements.addText('px','5%');
+                            uiElements.addLabel('dash',contentWidth/4-5+'%');
+                            let dash = (data.dash!==undefined) ? JSON.stringify(data.dash) : JSON.stringify(defaultSeries.dash);
+                            uiElements.addTypedInput('dash',["json"],dash,'json',contentWidth/4+5+'%');
+                            uiElements.addElement('br');
+                            uiElements.addLabel('path');
+                            uiElements.addSelect('path',interpolationOptions,data.path,contentWidth+'%');
+                        uiElements.closeGroup();
+                    } else {
+                        row.parent().prop('id','seriesDefault'); // mark this row as default to hide the sort and delete controls later
+                        uiElements.setGroup('defaultSeries',true,{id:'defaultSeries',label:'defaultSeries',collapsible:true, collapsed: true, textStyle: 'font-weight: bold;'});
+                            uiElements.addInput('topic','text',data.topic || '',contentWidth+'%','',false); // hidden input for topic
+                            uiElements.setGroup('series-stroke',true,{id:'series-stroke',label:'stroke',collapsible:true});
+                                uiElements.addLabel('colors');
+                                uiElements.addTypedInput('defaultStrokes',["json"],JSON.stringify(data.defaultStrokes || defaultColors),'json',contentWidth-5+'%');
+                                uiElements.addElement('br');
+                                uiElements.addText('&nbsp;');
+                                uiElements.addLabel('width',contentWidth/4-5+'%');
+                                uiElements.addInput('width',{type:'number',min:0,max:100},data.width || defaultSeries.width,contentWidth/4-5+'%')
+                                uiElements.addText('px','5%');
+                                uiElements.addLabel('dash',contentWidth/4-5+'%');
+                                let dash = (data.dash!==undefined) ? JSON.stringify(data.dash) : JSON.stringify(defaultSeries.dash);
+                                uiElements.addTypedInput('dash',["json"],dash,'json',contentWidth/4+5+'%');
+                                uiElements.addElement('br');
+                                uiElements.addLabel('path');
+                                uiElements.addSelect('path',interpolationOptions,data.path,contentWidth+'%');
+                            uiElements.closeGroup();
+                    }
 
-                    uiElements.addElement('br');
+                    //points
+                    uiElements.setGroup('series-points',false,{id:'series-points',label:'points',collapsible:true});
+                        if (data.topic!=='#') {
+                            uiElements.addLabel('visibility');
+                            uiElements.addTypedInput('points.show',
+                                [{value:"default", label:"default", icon:"fa fa-times",hasValue:false},
+                                {value:"show", label:"show", icon:"fa fa-check-square-o",hasValue:false},
+                                {value:"hide", label:"hide", icon:"fa fa-square-o",hasValue:false},
+                                {value:"multiValue", label:"space", icon:"fa fa-arrows-h", inputs:[
+                                    {property:'space',props:{type:'number',min:0,max:100},value: data.points?.space || defaultSeries.points.space},
+                                ]},
+                                {value:"function",label:"Function",icon:"fa fa-code",
+                                    customValue: data.legend || `(self, seriesIdx, idx0, idx1) => {\n  return true;\n}`}],
+                                data.points?.show || "default", data.points?.showType || "default", (contentWidth)+'%'
+                            );
+                            uiElements.addElement('br');
 
-                    uiElements.addLabel('label');
-                    uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('scale',contentWidth/4-5+'%');
-                    uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');                    
-                    uiElements.addElement('br');
+                            uiElements.addLabel('dimensions');
+                            uiElements.addTypedInput('points.dimensions',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},
+                                {value:"multiValue",label:"Dimensions", icon:"fa fa-expand",
+                                inputs:[
+                                    {property:'size',props:{type:'number',min:0,max:100},value: data.points?.dimensions?.size || defaultSeries.points.size},
+                                    {property:'width',props:{type:'number',min:0,max:100},value: data.points?.dimensions?.width || defaultSeries.points.width},
+                                ],
+                                customValue: data.points|| defaultSeries.points}],
+                                data.points?.dimensions || "default", data.points?.dimensionsType || "default",(contentWidth)+'%'
+                            );
+                            console.log(data.points?.dimensionsType);
+                            uiElements.addElement('br');
 
-                    //strokeColor
-                    uiElements.addLabel('stroke');
-                    uiElements.addLabel('color',contentWidth/4-5+'%');
-                    uiElements.addInput('strokeColor','color',RGBtoHEX(data.stroke || defaultSeries.stroke,'HEX'),contentWidth/4-5+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                    uiElements.addInput('strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.stroke || defaultSeries.stroke,'ALPHA100'),contentWidth/4+5+'%')
-                    uiElements.addLabel('%','5%');
-                    uiElements.addElement('br');
-                    
-                    uiElements.addLabel('&nbsp;');
-                    uiElements.addLabel('width',contentWidth/4-5+'%');
-                    uiElements.addInput('width',{type:'number',min:0,max:100},data.width || defaultSeries.width,contentWidth/4-5+'%')
-                    uiElements.addLabel('px','5%');
-                    
-                    uiElements.addLabel('dash',contentWidth/4-5+'%');
-                    let dash = (data.dash!==undefined) ? JSON.stringify(data.dash) : JSON.stringify(defaultSeries.dash);
-                    // uiElements.addInput('dash','text',dash,contentWidth/4+'%');
-                    uiElements.addTypedInput('dash',["json"],dash,'json',contentWidth/4+5+'%');
-                    uiElements.addElement('br');
-
-                    const interpolationOptions=["linear", "points", "spline", "stepBefore", "stepAfter", "bars"];
-                    let interpolation =[];
-                    interpolationOptions.forEach(option => { 
-                        let item = {i18n:'path'};
-                        item.value= option;
-                        interpolation.push(item);
-                    });
-                    uiElements.addLabel('path');
-                    uiElements.addSelect('path',interpolation,data.path,contentWidth+'%');
-
-
+                            uiElements.addLabel('stroke');
+                            uiElements.addTypedInput('points.strokeColor',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},
+                                {value:"colorRGBA",label:"Colour RGBA", icon:"fa fa-eyedropper", customValue: data.points?.strokeColor || defaultSeries.stroke, linkValue: ['colorPalette']},
+                                {value:"colorPalette",label:"Color Palette",icon:"fa fa-tint", customValue: data.points?.strokeColor || defaultSeries.stroke, linkValue: ['colorRGBA']}],
+                                data.points?.strokeColor || "default", data.points?.strokeColorType || "default",(contentWidth)+'%'
+                            );
+                            uiElements.addElement('br');
+                            uiElements.addLabel('fill');
+                            uiElements.addTypedInput('points.fillColor',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},
+                                {value:"colorRGBA",label:"Colour RGBA", icon:"fa fa-eyedropper", customValue: data.points?.fillColor || defaultSeries.fill, linkValue: ['colorPalette']},
+                                {value:"colorPalette",label:"Color Palette",icon:"fa fa-tint", customValue: data.points?.fillColor || defaultSeries.fill, linkValue: ['colorRGBA']}],
+                                data.points?.fillColor || "default", data.points?.fillColorType || "default",(contentWidth)+'%'
+                            );
+                        } else {
+                            uiElements.addLabel('stroke');
+                            uiElements.addTypedInput('points.strokeColor',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},"json"],
+                                JSON.stringify(data.points?.defaultStrokes || defaultColors), data.points?.defaultStrokesType || "default",(contentWidth)+'%'
+                            );
+                            uiElements.addElement('br');
+                            uiElements.addLabel('fill');
+                            uiElements.addTypedInput('points.fillColor',
+                                [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},"json"],
+                                JSON.stringify(data.points?.defaultFills || defaultColors), data.points?.defaultFillsType || "default",(contentWidth)+'%'
+                            );
+                        }
+                        uiElements.addElement('br');
+                    uiElements.closeGroup();
                     //fillColor
-                    uiElements.addLabel('fill');
-                    uiElements.addLabel('color',contentWidth/4-5+'%');
-                    uiElements.addInput('fillColor','color',RGBtoHEX(data.fill || defaultSeries.fill,'HEX'),contentWidth/4-5+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                    uiElements.addInput('fillAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.fill || defaultSeries.fill,'ALPHA100'),contentWidth/4+5+'%')
-                    uiElements.addLabel('%','5%');
-                    uiElements.addElement('br');
+                    uiElements.setGroup('series-fill',true,{id:'series-fill',label:'fill',collapsible:true});
+                        if (data.topic!=='#') {
+                            uiElements.addLabel('fill');
+                            uiElements.addInput('fill','color',data.fill || defaultSeries.fill,contentWidth+'%');
+                        } else {
+                            uiElements.addLabel('colors');
+                            uiElements.addTypedInput('defaultFills',["json"],JSON.stringify(data.defaultFills || defaultColors),'json',contentWidth-5+'%');
+                        }
+                        uiElements.addElement('br');
+                    uiElements.closeGroup();
                     
                     //Options
-                    console.log(data);
-                    uiElements.addLabel('options');
-                    uiElements.addInput('spanGaps',{type:'checkbox',checked: (data.spanGaps!==undefined) ? data.spanGaps : defaultSeries.spanGaps},undefined,'5%')
-                    uiElements.addLabel('spanGaps',contentWidth/3-5+'%');
-                    uiElements.addInput('show',{type:'checkbox',checked: (data.show!==undefined) ? data.show : defaultSeries.show},undefined,'5%')
-                    uiElements.addLabel('show',contentWidth/3-5+'%');
-                    uiElements.addInput('forward',{type:'checkbox',checked: (data.forward!==undefined) ? data.forward : defaultSeries.forward},undefined,'5%')
-                    uiElements.addLabel('forward',contentWidth/3-5+'%');
+                    uiElements.setGroup('series-options',true,{id:'series-options',label:'options',collapsible:true});
+                        uiElements.addLabel('&nbsp;');
+                        uiElements.addInput('spanGaps',{type:'checkbox',checked: (data.spanGaps!==undefined) ? data.spanGaps : defaultSeries.spanGaps},undefined,'5%')
+                        uiElements.addText('spanGaps',contentWidth/3-5+'%');
+                        uiElements.addInput('show',{type:'checkbox',checked: (data.show!==undefined) ? data.show : defaultSeries.show},undefined,'5%')
+                        uiElements.addText('show',contentWidth/3-5+'%');
+                        uiElements.addInput('forward',{type:'checkbox',checked: (data.forward!==undefined) ? data.forward : defaultSeries.forward},undefined,'5%')
+                        uiElements.addText('forward',contentWidth/3-5+'%');
+                    uiElements.closeGroup();
+
+                    if (data.topic==='#') {
+                        uiElements.closeGroup();
+                    }
                 }
             });
             $("#node-input-series-container").editableList('addItems', this.series);
+            setTimeout(() => {
+                $('#seriesDefault').find(".red-ui-editableList-item-handle").css("display","none");
+                $('#seriesDefault').find(".red-ui-editableList-item-remove").css("display","none");
+                //changeSeriesFilter(undefined, node.seriesFilter || 'series-all');
+            },500);
 
             let axesContainer = node.uiListElements.default.setRow($('#node-input-axes-top'));
-            axesContainer.addLabel('xaxes');
-            if (!this.axesX) this.axesX = defaultAxesX;
-            axesContainer.addButton('24h','24h','10%','click',(button => {
-                    axesContainer.setInput('24h','<i class="fa fa-spinner fa-spin">');
-                    uplotGetConfig(node,'axesX','24h',(data => {
-                        axesContainer.setInput('axesX',JSON.stringify(data));
-                        axesContainer.setInput('24h','24h');
-                    }));
-                })
-            );
-            axesContainer.addButton('12h','12h','10%','click',(button => {
-                    axesContainer.setInput('12h','<i class="fa fa-spinner fa-spin">');
-                    uplotGetConfig(node,'axesX','12h',(data => {
-                        axesContainer.setInput('axesX',JSON.stringify(data));
-                        axesContainer.setInput('12h','12h');
-                    }));
-                })
-            );
-            axesContainer.addTypedInput('axesX',["json"],JSON.stringify(this.axesX),'json',(contentWidth-25)+'%');
-            
+            axesContainer.setGroup('axes-main',true, 'form-row');
+                axesContainer.addClassicLabel('xaxes','fa fa-clock-o');
+                if (!this.axesX) this.axesX = defaultAxesX;
+                axesContainer.addButton('24h','24h','10%','click',(button => {
+                        axesContainer.setInput('24h','<i class="fa fa-spinner fa-spin">');
+                        uplotGetConfig(node,'axesX','24h',(data => {
+                            axesContainer.setInput('axesX',JSON.stringify(data));
+                            axesContainer.setInput('24h','24h');
+                        }));
+                    })
+                );
+                axesContainer.addButton('12h','12h','10%','click',(button => {
+                        axesContainer.setInput('12h','<i class="fa fa-spinner fa-spin">');
+                        uplotGetConfig(node,'axesX','12h',(data => {
+                            axesContainer.setInput('axesX',JSON.stringify(data));
+                            axesContainer.setInput('12h','12h');
+                        }));
+                    })
+                );
+                axesContainer.addTypedInput('axesX',["json"],JSON.stringify(this.axesX),'json',(contentWidth-25)+'%');
+            axesContainer.closeGroup();
 
 
             $('#node-input-axes-container')
@@ -787,84 +635,83 @@
 
                     var uiElements = node.uiListElements.axes.setRow(row);
 
-                    uiElements.addLabel('label');
-                    uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('scale',contentWidth/4-5+'%');
-                    uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');
+                    if (data.scale!=='#') {
+                        uiElements.addLabel('label');
+                        uiElements.addInput('label','text',data.label,contentWidth/2-10+'%');
+                        uiElements.addText('&nbsp;','5%');
+                        uiElements.addLabel('scale',contentWidth/4-5+'%');
+                        uiElements.addSelect('scale',scaleIds,data.scale,contentWidth/4+5+'%');
+                        uiElements.addElement('br');
+                        //side
+                        let side = [0,1,2,3,4].map(value =>{return {i18n:'side',value}});
+                        uiElements.addLabel('side');
+                        uiElements.addSelect('side',side,data.side,contentWidth/2+'%','integer');
+                        uiElements.setProp('scale','disabled',data.side===4);
+                        uiElements.addEvent('change',(function (element) {
+                            var uiElement = uiElements;
+                            if (parseInt(element.val())===4) {
+                                uiElement.setProp('scale','disabled',true);
+                            }
+                        }))
+                    } else {
+                        row.parent().prop('id','axisDefault');
+                        uiElements.addInput('scale','text','#',contentWidth+'%','',false);
+                        uiElements.addLabel('defaultAxes','100%');
+                        uiElements.addElement('br');
+                        uiElements.addLabel('label');
+                        uiElements.addInput('label','text',data.label,contentWidth+'%');
+                        uiElements.addElement('br');
+                        //side
+                        let side = [0,1].map(value =>{return {i18n:'side',value}});
+                        uiElements.addLabel('side');
+                        uiElements.addSelect('side',side,data.side,contentWidth/2+'%','integer');
+                    }
 
                     uiElements.addElement('br');
 
-                    uiElements.addLabel('&nbsp;');
-                    uiElements.addLabel('color',contentWidth/4-5+'%');
-                    uiElements.addInput('strokeColor','color',RGBtoHEX(data.stroke || defaultAxes.stroke,'HEX'),contentWidth/4-5+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                    uiElements.addInput('strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.stroke || defaultAxes.stroke,'ALPHA100'),contentWidth/4+5+'%')
-                    uiElements.addLabel('%','5%');
+                    uiElements.addLabel('label');
+                    uiElements.addInput('stroke','color',data.stroke || defaultAxes.stroke,contentWidth+'%');
                     uiElements.addElement('br');
                     
-                    //side
-                    let side = [0,1,2,3,4].map(value =>{return {i18n:'side',value}});
-                    uiElements.addLabel('side');
-                    uiElements.addSelect('side',side,data.side,contentWidth/2+'%','integer');
-                    uiElements.setProp('scale','disabled',data.side===4);
-                    uiElements.addEvent('change',(function (element) {
-                        var uiElement = uiElements;
-                        if (parseInt(element.val())===4) {
-                            uiElement.setProp('scale','disabled',true);
-                        }
-                    }))
-                    uiElements.addElement('br');
-
                     // grid
                     uiElements.addLabel('grid');
-                    uiElements.addLabel('color',contentWidth/4-5+'%');
-                    uiElements.addInput('grid.strokeColor','color',RGBtoHEX(data.grid.stroke || defaultAxes.grid.stroke,'HEX'),contentWidth/4-5+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                    uiElements.addInput('grid.strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.grid.stroke || defaultAxes.grid.stroke,'ALPHA100'),contentWidth/4+5+'%')
-                    uiElements.addLabel('%','5%');
-                    uiElements.addElement('br');
+                    uiElements.addInput('grid.stroke','color',data.grid.stroke || defaultAxes.grid.stroke,contentWidth+'%');
 
-                    uiElements.addLabel('&nbsp;');
+                    uiElements.addText('&nbsp;');
                     uiElements.addLabel('width',contentWidth/4-5+'%');
                     uiElements.addInput('grid.width',{type:'number',min:0,max:100},data.grid.width || defaultAxes.grid.width,contentWidth/4-5+'%')
-                    uiElements.addLabel('px','5%');
+                    uiElements.addText('px','5%');
                     uiElements.addLabel('dash',contentWidth/4-5+'%');
                     let gridDash = (data.grid.dash!==undefined) ? JSON.stringify(data.grid.dash) : JSON.stringify(defaultAxes.grid.dash);
                     uiElements.addTypedInput('grid.dash',["json"],gridDash,'json',contentWidth/4+5+'%');
                     uiElements.addElement('br');
                     
-                    uiElements.addLabel('&nbsp;');
+                    uiElements.addText('&nbsp;');
                     uiElements.addInput('grid.show',{type:'checkbox',checked: (data.grid.show!==undefined) ? data.grid.show : defaultAxes.grid.show},undefined,'5%')
-                    uiElements.addLabel('show',contentWidth/3-5+'%');
+                    uiElements.addText('show',contentWidth/3-5+'%');
                     uiElements.addElement('br');
                     // ticks
                     uiElements.addLabel('ticks');
-                    uiElements.addLabel('color',contentWidth/4-5+'%');
-                    uiElements.addInput('ticks.strokeColor','color',RGBtoHEX(data.ticks.stroke || defaultAxes.ticks.stroke,'HEX'),contentWidth/4-5+'%');
-                    uiElements.addLabel('&nbsp;','5%');
-                    uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                    uiElements.addInput('ticks.strokeAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.ticks.stroke || defaultAxes.ticks.stroke,'ALPHA100'),contentWidth/4+5+'%')
-                    uiElements.addLabel('%','5%');
+                    uiElements.addInput('ticks.stroke','color',data.ticks.stroke || defaultAxes.ticks.stroke,contentWidth+'%');
                     uiElements.addElement('br');
 
-                    uiElements.addLabel('&nbsp;');
+                    uiElements.addText('&nbsp;');
                     uiElements.addLabel('width',contentWidth/4-5+'%');
                     uiElements.addInput('ticks.width',{type:'number',min:0,max:100},data.ticks.width || defaultAxes.ticks.width,contentWidth/4-5+'%')
-                    uiElements.addLabel('px','5%');
+                    uiElements.addText('px','5%');
                     uiElements.addLabel('dash',contentWidth/4-5+'%');
                     let ticksDash = (data.ticks.dash!==undefined) ? JSON.stringify(data.ticks.dash) : JSON.stringify(defaultAxes.ticks.dash);
                     uiElements.addTypedInput('ticks.dash',["json"],ticksDash,'json',contentWidth/4+5+'%');
                     uiElements.addElement('br');
 
-                    uiElements.addLabel('&nbsp;');
+                    uiElements.addText('&nbsp;');
                     uiElements.addInput('ticks.show',{type:'checkbox',checked: (data.ticks.show!==undefined) ? data.ticks.show : defaultAxes.ticks.show},undefined,'5%')
-                    uiElements.addLabel('show',contentWidth/3-5+'%');
+                    uiElements.addText('show',contentWidth/3-5+'%');
                 }
             });
             $("#node-input-axes-container").editableList('addItems', this.axes);
+            $('#axisDefault').find(".red-ui-editableList-item-handle").css("display","none");
+            $('#axisDefault').find(".red-ui-editableList-item-remove").css("display","none");
 
             $('#node-input-scales-container')
             .css('min-height','250px').css('min-width','400px')
@@ -875,17 +722,24 @@
                 addItem: function(row, index, data) {
                     if (!data) data={};
                     var uiElements = node.uiListElements.scales.setRow(row);
+                    if (data.id!=='#') {
+                        uiElements.addLabel('id');
+                        uiElements.addInput('id','text',data.id || '', contentWidth+'%');
+                        uiElements.addElement('br');
+                    } else {
+                        row.parent().prop('id','scaleDefault');
+                        uiElements.addInput('id','text',data.id || '', contentWidth+'%', '', false);
+                        uiElements.addLabel('defaultScale','100%');
+                        uiElements.addElement('br');
 
-                    uiElements.addLabel('id');
-                    uiElements.addInput('id','text',data.id || '', contentWidth+'%');
-                    uiElements.addElement('br');
+                    }
                     uiElements.addLabel('name');
                     uiElements.addInput('name','text', data.name || '', contentWidth+'%');
                     uiElements.addElement('br');
 
                     uiElements.addLabel('range');
                     uiElements.addInput('auto',{type:'checkbox',checked: (data.auto!==undefined) ? data.auto : true},undefined,'5%')
-                    uiElements.addLabel('auto','15%');
+                    uiElements.addText('auto','15%');
                     uiElements.addLabel('min',contentWidth/4-10+'%');
                     uiElements.addInput('min',{type:'number'},data.min || 0,contentWidth/4+'%'),
                     uiElements.addLabel('max',contentWidth/4-10+'%');
@@ -895,6 +749,8 @@
                 }
             });
             $("#node-input-scales-container").editableList('addItems', this.scales);
+            $('#scaleDefault').find(".red-ui-editableList-item-handle").css("display","none");
+            $('#scaleDefault').find(".red-ui-editableList-item-remove").css("display","none");
 
             //console.log(RED.settings.context.stores);
 
@@ -904,96 +760,98 @@
             let dataStores = RED.settings.context.stores || ["default"];
             let dataContainer = node.uiListElements.default.setRow($('#node-input-data-top'));
         
-            dataContainer.addLabel('store');
-            dataContainer.addTypedInput(
-                'dataStore',
-                [{value:"store",label:"node",options:dataStores},"flow","global"],
-                (this.dataStore.typedValue) ? this.dataStore.typedValue : this.dataStore.store,
-                this.dataStore.context,(contentWidth-40)+'%'
-            );
-                /*,
-                (event, type, value) => {
-                    let element = $(event.target);
-                    let lastSelected = element.prop('_lastSelectedValue');
-                    let lastSelectedType = element.prop('_lastSelectedType');
-                    console.log('change event', {event, type, value, lastSelected, lastSelectedType})
-                    switch (type) {
-                        case 'global':
-                        case 'flow': 
-                            if (lastSelected && value!==lastSelected) { 
-                                element.typedInput('value', lastSelected);
-                            }
-                            element.prop('_lastSelectedValue',value);
-                            break;
-                    }
-                    element.prop('_lastSelectedType',type);
-                }
-            );*/
-            dataContainer.addButton('erase','erase','15%','click',(button => {
-                dataContainer.setInput('erase','<i class="fa fa-spinner fa-spin">');
-                var myNotification = RED.notify(node._("uplot.dialogs.erase.text"),{
-                    modal: true,
-                    fixed: true,
-                    type: 'warning', // can be null, 'compact', 'success', 'warning', 'error'
-                    buttons: [
-                        {
-                            text: node._("uplot.dialogs.erase.button.0"),
-                            click: function(e) {
-                                myNotification.close();
-                                dataContainer.setInput('erase','erase');
-                            }
-                        },
-                        {
-                            text: node._("uplot.dialogs.erase.button.1"),
-                            class:"primary",
-                            click: function(e) {
-                                myNotification.close();
-                                uplotGetConfig(node,'eraseData','all',(data => {
-                                    if (data==='ok') {
-                                        dataContainer.setInput('erase','erase');
-                                    } else {
-                                        dataContainer.setInput('erase',data);
-                                    }
-                                }));
-                            }
+            dataContainer.setGroup('data-main',true, 'form-row');
+                dataContainer.addClassicLabel('store','fa fa-database');
+                dataContainer.addTypedInput(
+                    'dataStore',
+                    [{value:"store",label:"node",options:dataStores},"flow","global"],
+                    (this.dataStore.typedValue) ? this.dataStore.typedValue : this.dataStore.store,
+                    this.dataStore.context,(contentWidth-40)+'%'
+                );
+                    /*,
+                    (event, type, value) => {
+                        let element = $(event.target);
+                        let lastSelected = element.prop('_lastSelectedValue');
+                        let lastSelectedType = element.prop('_lastSelectedType');
+                        console.log('change event', {event, type, value, lastSelected, lastSelectedType})
+                        switch (type) {
+                            case 'global':
+                            case 'flow': 
+                                if (lastSelected && value!==lastSelected) { 
+                                    element.typedInput('value', lastSelected);
+                                }
+                                element.prop('_lastSelectedValue',value);
+                                break;
                         }
-                    ]
-                });
-            }));
-            dataContainer.addButton('info','info','10%','click',(button => {
-                uplotGetConfig(node,'getSizes','',(data => {
-                    var myNotification = RED.notify(node._("uplot.dialogs.info.text")+"<br><pre>"+JSON.stringify(data, null, 2)+"</pre>",{
+                        element.prop('_lastSelectedType',type);
+                    }
+                );*/
+                dataContainer.addButton('erase','erase','15%','click',(button => {
+                    dataContainer.setInput('erase','<i class="fa fa-spinner fa-spin">');
+                    var myNotification = RED.notify(node._("uplot.dialogs.erase.text"),{
                         modal: true,
                         fixed: true,
-                        type: null, // can be null, 'compact', 'success', 'warning', 'error'
+                        type: 'warning', // can be null, 'compact', 'success', 'warning', 'error'
                         buttons: [
                             {
-                                text: node._("uplot.dialogs.info.button.0"),
+                                text: node._("uplot.dialogs.erase.button.0"),
                                 click: function(e) {
                                     myNotification.close();
+                                    dataContainer.setInput('erase','erase');
+                                }
+                            },
+                            {
+                                text: node._("uplot.dialogs.erase.button.1"),
+                                class:"primary",
+                                click: function(e) {
+                                    myNotification.close();
+                                    uplotGetConfig(node,'eraseData','all',(data => {
+                                        if (data==='ok') {
+                                            dataContainer.setInput('erase','erase');
+                                        } else {
+                                            dataContainer.setInput('erase',data);
+                                        }
+                                    }));
                                 }
                             }
                         ]
                     });
                 }));
-            }));
-            dataContainer.addButton('clean','clean','10%','click',(button => {
-                uplotGetConfig(node,'clean','',(data => {
-                    var myNotification = RED.notify(node._("uplot.dialogs.clean.text")+"<br><hr>"+data+"<hr>",{
-                        modal: true,
-                        fixed: true,
-                        type: null, // can be null, 'compact', 'success', 'warning', 'error'
-                        buttons: [
-                            {
-                                text: node._("uplot.dialogs.clean.button.0"),
-                                click: function(e) {
-                                    myNotification.close();
+                dataContainer.addButton('info','info','10%','click',(button => {
+                    uplotGetConfig(node,'getSizes','',(data => {
+                        var myNotification = RED.notify(node._("uplot.dialogs.info.text")+"<br><pre>"+JSON.stringify(data, null, 2)+"</pre>",{
+                            modal: true,
+                            fixed: true,
+                            type: null, // can be null, 'compact', 'success', 'warning', 'error'
+                            buttons: [
+                                {
+                                    text: node._("uplot.dialogs.info.button.0"),
+                                    click: function(e) {
+                                        myNotification.close();
+                                    }
                                 }
-                            }
-                        ]
-                    });
+                            ]
+                        });
+                    }));
                 }));
-            }));
+                dataContainer.addButton('clean','clean','10%','click',(button => {
+                    uplotGetConfig(node,'clean','',(data => {
+                        var myNotification = RED.notify(node._("uplot.dialogs.clean.text")+"<br><hr>"+data+"<hr>",{
+                            modal: true,
+                            fixed: true,
+                            type: null, // can be null, 'compact', 'success', 'warning', 'error'
+                            buttons: [
+                                {
+                                    text: node._("uplot.dialogs.clean.button.0"),
+                                    click: function(e) {
+                                        myNotification.close();
+                                    }
+                                }
+                            ]
+                        });
+                    }));
+                }));
+            dataContainer.closeGroup();
 
             $('#node-input-dataPlugins-container')
             .css('min-height','250px').css('min-width','400px')
@@ -1009,13 +867,13 @@
                     const maxDataPlugins = 5;
                     const dataPlugins = ['none','limitTime','limitColumns','reduceData','timePrecision','cleanTable']
                     let options = dataPlugins.map(value => {return {i18n:'plugins',value}});
-                    uiElements.addLabel('plugin');
+                    uiElements.addClassicLabel('plugin','fa fa-plug');
                     let pluginElement = uiElements.addSelect('plugin',options,data.plugin || 'none',contentWidth-20+'%');
                     uiElements.addEvent('change',(function (element) {
                         uiElements.setGroupVisibility(element,'plugins',element.val());
                     }))
                     uiElements.addInput('enabled',{type:'checkbox',checked: (data.enabled!==undefined) ? data.enabled : true},undefined,'5%');
-                    uiElements.addLabel('enabled','15%');
+                    uiElements.addText('enabled','15%');
                     
                     let timePeriods =[]; // seconds ... weeks
                     for (let i = 0; i < 5; i++) { timePeriods.push({i18n:'period',value: node._("uplot.dataPlugins.select.periods."+i)}) };
@@ -1165,22 +1023,19 @@
                     var uiElements = node.uiListElements.plugins.setRow(row);
 
                     // plugin dropdown
-                    const maxPlugins =6;
                     const plugins = ['none','bands','keepZoomLevelPlugin','wheelPanZoomPlugin','touchZoomPlugin','columnHighlightPlugin','legendAsTooltipPlugin']
-                    let options =[];
-                    for (let i = 0; i <= maxPlugins; i++) { 
-                        options.push({i18n:'plugins',value: plugins[i]})
-                    };
+                    let options = plugins.map(value => { return {i18n:'plugins',value}})
+
                     let defaultZoomPeriods =[]; // seconds ... years
                     for (let i = 0; i < 7; i++) { defaultZoomPeriods.push({i18n:'period',value: node._("uplot.plugins.select.periods."+i)}) };
 
-                    uiElements.addLabel('plugin');
+                    uiElements.addClassicLabel('plugin','fa fa-plug');
                     let pluginElement = uiElements.addSelect('plugin',options,data.plugin || 'none',contentWidth-20+'%');
                     uiElements.addEvent('change',(function (element) {
                         uiElements.setGroupVisibility(element,'plugins',element.val());
                     }))
                     uiElements.addInput('enabled',{type:'checkbox',checked: (data.enabled!==undefined) ? data.enabled : true},undefined,'5%');
-                    uiElements.addLabel('enabled','15%');
+                    uiElements.addText('enabled','15%');
 
                     uiElements.setGroup('plugins',true); // options container
                         // bands plugin
@@ -1196,18 +1051,13 @@
                             uiElements.addElement('br');
 
                             uiElements.addLabel('band');
-                            uiElements.addLabel('color',contentWidth/4-5+'%');
-                            uiElements.addInput('fillColor','color',RGBtoHEX(data.fill || defaultSeries.fill,'HEX'),contentWidth/4-5+'%');
-                            uiElements.addLabel('&nbsp;','5%');
-                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                            uiElements.addInput('fillAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.fill || defaultSeries.fill,'ALPHA100'),contentWidth/4+5+'%')
-                            uiElements.addLabel('%','5%');
+                            uiElements.addInput('fill','color',data.fill || defaultSeries.fill,contentWidth+'%');
                         uiElements.closeGroup();
                         // keep zoom level
                         uiElements.setGroup('keepZoomLevelPlugin',false);
-                            uiElements.addLabel('&nbsp;');
+                            uiElements.addText('&nbsp;');
                             uiElements.addInput('panWithData',{type:'checkbox',checked: (data.panWithData!==undefined) ? data.panWithData : true},undefined,'5%');
-                            uiElements.addLabel('panWithData',contentWidth-5+'%');
+                            uiElements.addText('panWithData',contentWidth-5+'%');
                             uiElements.addElement('br');
                             uiElements.addLabel('defaultX');
                             uiElements.addLabel('defaultZoom',contentWidth/4-5+'%');
@@ -1227,31 +1077,16 @@
                         // column-highlights the hovered x index
                         uiElements.setGroup('columnHighlightPlugin',false);
                             uiElements.addLabel('highlightColor');
-                            uiElements.addLabel('color',contentWidth/4-5+'%');
-                            uiElements.addInput('highlightColor','color',RGBtoHEX(data.highlight || "rgba(51,204,255,0.3)",'HEX'),contentWidth/4-5+'%');
-                            uiElements.addLabel('&nbsp;','5%');
-                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                            uiElements.addInput('highlightAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.highlight || "rgba(51,204,255,0.3)",'ALPHA100'),contentWidth/4+5+'%')
-                            uiElements.addLabel('%','5%');
+                            uiElements.addInput('highlight','color',data.highlight || "#33ccff4d",contentWidth+'%');
                         uiElements.closeGroup();
                         // converts the legend into a simple tooltip
                         uiElements.setGroup('legendAsTooltipPlugin',false);
                             uiElements.addLabel('textColor');
-                            uiElements.addLabel('color',contentWidth/4-5+'%');
-                            uiElements.addInput('textColor','color',RGBtoHEX(data.text || "rgba(0, 0, 0, 1)",'HEX'),contentWidth/4-5+'%');
-                            uiElements.addLabel('&nbsp;','5%');
-                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                            uiElements.addInput('textAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.text || "rgba(255, 249, 196, 0.85)",'ALPHA100'),contentWidth/4+5+'%')
-                            uiElements.addLabel('%','5%');
+                            uiElements.addInput('text','color',data.text || "#000000",contentWidth+'%');
                             uiElements.addElement('br');
 
                             uiElements.addLabel('backgroundColor');
-                            uiElements.addLabel('color',contentWidth/4-5+'%');
-                            uiElements.addInput('backgroundColor','color',RGBtoHEX(data.background || "rgba(255, 249, 196, 0.80)",'HEX'),contentWidth/4-5+'%');
-                            uiElements.addLabel('&nbsp;','5%');
-                            uiElements.addLabel('alpha',contentWidth/4-5+'%');
-                            uiElements.addInput('backgroundAlpha',{type:'number',min:0,max:100},RGBtoHEX(data.background || "rgba(255, 249, 196, 0.80)",'ALPHA100'),contentWidth/4+5+'%')
-                            uiElements.addLabel('%','5%');
+                            uiElements.addInput('background','color',data.background || "#fffbc4cc",contentWidth+'%');
                         uiElements.closeGroup();
                     uiElements.closeGroup();
                     
@@ -1280,7 +1115,8 @@
             if (typeof node.dataStore === 'string') {
                 node.dataStore={context:'node', store: node.dataStore};
             }
-            node.uiListElements.main.getValue('defaultColors',node);
+            node.uiListElements.default.getValue('seriesFilter',node);
+            // node.uiListElements.main.getValue('defaultColors',node);
         },
         oneditresize: function(size) {
             // uplotResizeList();
@@ -1288,20 +1124,42 @@
     });
 </script>
 
+<link rel="stylesheet" href="resources/node-red-contrib-ui-uplot-charts/colr_pickr.min.css" />
+<script src="resources/node-red-contrib-ui-uplot-charts/colr_pickr.min.js"></script>
+<script src="resources/node-red-contrib-ui-uplot-charts/configUiElements.min.js"></script>
+
+<style type="text/css">
+    .colorButton {
+        width: 60px !important; 
+        height:25px !important; 
+        margin: 2px !important;
+        padding: 0px !important; 
+        box-shadow: none; 
+        border-radius: 3px !important; 
+        border: solid 1px;
+    }
+    .alphaPattern {
+        width: 60px !important; 
+        height:25px !important; 
+        margin: 2px 5px 4px 5px !important; 
+        padding: 0px;
+        border-radius: 3px !important;
+        background-image: url("data:image/svg+xml, %3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cpattern id='pattern-checkers' x='0' y='0' width='16' height='16' patternUnits='userSpaceOnUse' %3E%3Crect class='checker' x='0' y='0' width='8' height='8' fill='%23eee'/%3E%3Crect class='checker' x='8' y='8' width='8' height='8' fill='%23eee'/%3E%3C/pattern%3E%3Crect id='checkersRect' x='0' y='0' width='100%25' height='100%25' fill='url(%23pattern-checkers)'/%3E%3C/svg%3E");
+    }
+    .alphaButton { /* to be placed above the alphaPattern */
+        position: absolute;
+        transform: translate(-67px,2px);
+        -ms-transform: translate(-67px, 2px);
+    }
+    .inputLabels { /* to be placed above inputs */
+        pointer-events: none;
+        position: relative;
+        font-size: 0.7em;
+        opacity: 0.8
+    }
+</style>
 
 <script type="text/html" data-template-name="ui_uplot-charts">
-
-    <div class="form-row" id="template-row-group">
-        <label for="node-input-group"><i class="fa fa-table"></i> <span data-i18n='uplot.label.group'></span></label>
-        <input type="text" id="node-input-group">
-    </div>
-
-    <div class="form-row" id="template-row-size">
-        <label><i class="fa fa-object-group"></i> <span data-i18n='iro-color.label.size'></span></label>
-        <input type="hidden" id="node-input-width">
-        <input type="hidden" id="node-input-height">
-        <button class="editor-button" id="node-input-size"></button>
-    </div>
 
     <div class="form-row">
         <ul style="min-width: 420px; margin-bottom: 20px;" id="node-uplot-config-tabs"></ul>
@@ -1309,10 +1167,25 @@
 
     <div id="node-uplot-config-tabs-content" style="min-height: 170px;">
         <div id="uplot-tab-main-0" style="display:none">
+            <div class="form-row" id="template-row-group">
+                <label for="node-input-group"><i class="fa fa-table"></i> <span data-i18n='uplot.label.group'></span></label>
+                <input type="text" id="node-input-group">
+            </div>
+        
+            <div class="form-row" id="template-row-size">
+                <label><i class="fa fa-object-group"></i> <span data-i18n='iro-color.label.size'></span></label>
+                <input type="hidden" id="node-input-width">
+                <input type="hidden" id="node-input-height">
+                <button class="editor-button" id="node-input-size"></button>
+            </div>
+        
+        
             <div id="node-tab-general">
             </div>
         </div>
         <div id="uplot-tab-main-1" style="display:none">
+            <div id="node-input-series-top">
+            </div>
             <div class="form-row node-input-series-container-row">
                 <label for="node-input-series-container" style="vertical-align:top; width:100%;"><i class="fa fa-list-alt"></i> <span data-i18n='uplot.label.series'></span></label>
                 <ol id="node-input-series-container"></ol>

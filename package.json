@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-ui-uplot-charts",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "alternative chart widget for the Node-RED dashboard",
   "peerDependencies": {
     "node-red-dashboard": ">2.15.0"
@@ -30,7 +30,10 @@
     }
   },
   "main": "ui-uplot-charts.js",
-  "plugins":[
+  "tools": [
+    "configUiElements"
+  ],
+  "plugins": [
     "wheelZoomPlugin",
     "columnHighlightPlugin",
     "legendAsTooltipPlugin",
@@ -39,10 +42,12 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^11.0.1",
     "@rollup/plugin-node-resolve": "^7.0.0",
-    "rollup": "^1.29.0"
+    "rollup": "^1.29.0",
+    "rollup-plugin-uglify": "^6.0.4"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "buildTools": "rollup --config rollup-tools.config.js"
   }
 }

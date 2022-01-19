@@ -117,6 +117,12 @@ none
 
 Data series are defined here. They will be auto added and configured as soon as a new `mgs.topic` arrives but can be edited or pre defined.
 
+Default Properties for Series can be defined.
+|property | type | description
+|--------:|:-----|------------
+|default colors|array| of colors to be used for each new series
+|default fills|array| of 32bit colors (with alpha) for fills. Set alpha to `00` if no fill is desired.
+
 Data series can be sorted to have control over the draw order and appearance in the legend\*
 
 |property | type | description
@@ -158,7 +164,7 @@ Order of the axes only for visual convenience.
 
 ### Scales
 
-Scales can be defined individually and used for data series and axes.
+Scales can be defined individually and used for data series and axes.  
 Order of the scales only for visual convenience.
 
 |property | type | description
@@ -252,8 +258,12 @@ Plugins are loaded to the dashboard "when used only" as modules.
 
 ## Changelog
 
+### 0.0.7
+- default series can be defined
+- default scale can be defined
+- default axes can be defined
 ### 0.0.6
-- `defaultColors` can be edited
+- `defaultColors` can be edited (to be tested)
 ### 0.0.4 & 0.0.5
 - fix if no `contextStorage` is defined in `settings.js`
 ### 0.0.3

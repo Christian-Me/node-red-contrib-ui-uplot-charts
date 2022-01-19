@@ -1,7 +1,7 @@
 {
     "uplot" : {
         "label" : {
-            "&nbsp;":"&nbsp",
+            "&nbsp;":"&nbsp;",
             "group" : "Group",
             "name":"Name",
             "series" : "Data series defined by topic (auto detected topics are read only)",
@@ -31,7 +31,7 @@
         },
         "dataPlugins": {
             "label" : {
-                "&nbsp;":"&nbsp",
+                "&nbsp;":"&nbsp;",
                 "store": "Store",
                 "erase": "erase",
                 "clean": "clean",
@@ -83,30 +83,86 @@
         },
         "series" : {
             "label" : {
-                "&nbsp;":"&nbsp",
+                "&nbsp;":"&nbsp;",
                 "topic": "Topic",
-                "label": "Label",
-                "scale": "Scale",
-                "stroke": "Stroke",
-                "color": "Color",
-                "alpha": "Alpha",
-                "%":"%",
-                "width": "Width",
-                "px":"px",
-                "path": "Path",
-                "fill": "Fill",
-                "dash": "Pattern",
-                "options": "Options",
-                "spanGaps": "span gaps",
-                "show": "show",
-                "forward": "forward"
+                "defaultSeries": {
+                    "defaultSeries": "Default series used for new or unknown topics"
+                },
+                "series-label" : {
+                    "&nbsp;": "&nbsp;",
+                    "label": "Label",
+                    "scale": "Scale",
+                    "legend": "Legend"
+                },
+                "series-stroke": {   
+                    "&nbsp;":"&nbsp;",
+                    "stroke": "Stroke",
+                    "line": "Line",
+                    "color": "Color",
+                    "colors": "Colors",
+                    "palette":"Palette",
+                    "alpha": "Alpha",
+                    "%":"%",
+                    "width": "Width",
+                    "px":"px",
+                    "dash": "Pattern",
+                    "path": "Path"
+                },
+                "series-points": {
+                    "&nbsp;":"&nbsp;",
+                    "points":"Points",
+                    "color": "Color",
+                    "colors": "Colors",
+                    "visibility": "Visibility",
+                    "show":"Show",
+                    "dimensions": "Dimensions",
+                    "stroke":"Stroke",
+                    "strokeColors": "Stroke Colors",
+                    "fill":"Fill",
+                    "fillColors": "Fill Colors",
+                    "space":{
+                        "label":"min space between points",
+                        "unit":"px",
+                        "tooltip": "minimum space between points"
+                    },
+                    "width":{
+                        "label":"Width",
+                        "unit":"px",
+                        "tooltip": "Width of the point stroke"
+                    },
+                    "size":{
+                        "label":"Size",
+                        "unit":"px",
+                        "tooltip": "Diameter of the point"
+                    },
+                    "px":"px",
+                    "alpha": "Alpha",
+                    "%":"%"
+                },
+                "series-fill": {
+                    "&nbsp;":"&nbsp;",
+                    "fill": "Fill",
+                    "color": "Color",
+                    "colors": "Colors",
+                    "palette":"Palette",
+                    "alpha": "Alpha",
+                    "%":"%"
+                },
+                "series-options": {
+                    "&nbsp;":"&nbsp;",
+                    "options": "Options",
+                    "spanGaps": "span gaps",
+                    "show": "show",
+                    "forward": "forward"
+                }
             },
             "placeholder":{
                 "topic":"unique identifier for this row",
                 "label":"label to show in legend"
             },
             "select" : {
-                "path":["Linear","Points only","Monotone Cubic Spline","Step before","Step after","Bars"]
+                "path":["Linear","Points only","Monotone Cubic Spline","Step before","Step after","Bars"],
+                "show":["auto", "on", "off"]
             }
         },
         "main" : {
@@ -118,14 +174,19 @@
                     "name":"Name",
                     "spaceForTitle":"Title",
                     "spaceForLegend":"Legend",
-                    "px":"px",
-                    "palette":"Palette"
+                    "px":"px"
                 },
                 "debug":{
                     "&nbsp;":"&nbsp;",
+                    "debug":"Debugging",
                     "title":"console.log",
                     "debugServer":"backend",
                     "debugClient":"frontend"
+                },
+                "ui": {
+                    "&nbsp;":"&nbsp;",
+                    "ui":"UI",
+                    "compactLists":"compact lists"
                 }
             },
             "placeholder":{
@@ -140,17 +201,29 @@
         },
         "default" : {
             "label" : {
-                "&nbsp;":"&nbsp;",
-                "xaxes": "X axes",
+                "&nbsp;": "&nbsp;",
+                "series-main": {
+                    "seriesFilter": "Filter",
+                    "hideFiltered": "Hide filtered"
+                },
+                "axes-main": {
+                    "xaxes": "X-Axes"
+                },
                 "24h": "24h",
                 "12h": "12h",
-                "store":"Store",
-                "erase":"erase",
+                "data-main": {
+                    "store": "Store"
+                },
+                "erase": "erase",
                 "info": "<i class='fa fa-info-circle'></i>",
-                "clean": "<i class='fa fa-compress'></i>"
+                "clean": "<i class='fa fa-compress'></i>",
+                "showAll": "Show all options",
+                "singleFilter": "Filter single group",
+                "multiFilter": "Filter multiple groups"
             },
             "select" : {
-                
+                "singleFilters":["[all]","Label","Stroke","Points","Fill","Options"],
+                "multiFilters":["Label","Stroke","Points","Fill","Options"]
             }
         },
         "scales" : {
@@ -161,11 +234,12 @@
                 "range":"Range",
                 "min":"Min",
                 "max":"Max",
-                "auto":"Auto"
+                "auto":"Auto",
+                "defaultScale": "<strong>Default scale used for new or unknown series and axes</strong>"
             },
             "placeholder":{
                 "id":"unique scale id",
-                "name":"scale label"
+                "name":"scale label leave blank for no label"
             },
             "select" : {
             }
@@ -188,7 +262,11 @@
                 "options": "Options",
                 "show": "show",
                 "right": "right",
-                "increments": "Increments"
+                "increments": "Increments",
+                "defaultAxes": "<strong>Default Y-Axes for default scale</strong>"
+            },
+            "placeholder":{
+                "label": "Label shown next to the Axes"
             },
             "select" : {
                 "side":["left","right","bottom","top","X axes"]
@@ -196,7 +274,7 @@
         },
         "plugins" : {
             "label" : {
-                "&nbsp;":"&nbsp",
+                "&nbsp;":"&nbsp;",
                 "plugin":"Plugin",
                 "enabled": "Enabled",
                 "bands":{

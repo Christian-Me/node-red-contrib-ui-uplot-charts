@@ -782,10 +782,82 @@ module.exports = function(RED) {
                                 })
                             }
                         }
+                        var deleteDefaults = function (element) {
+                            if (typeof element === 'object') {
+                                Object.keys(element).forEach(key => {
+                                    if (typeof element[key] === 'object') {
+                                        deleteDefaults (element[key]);
+                                    } else {
+                                        if (element[key]==='default') {
+                                            delete element[key];
+                                        }
+                                    }
+                                })
+                            }
+                        }
+                        var translateProperties = function (element,def) {
+                            if (typeof element === 'object') {
+                                Object.keys(element).forEach(key => {
+                                    if (typeof element[key] === 'object') {
+                                        translateProperties (element[key], def[key]);
+                                    } else {
+                                        if (def[key]!==undefined) {
+                                            if (typeof def[key] === 'object') {
+                                                element[def[key].property] = def[key].translate(element[key]);
+                                                if (def[key].property !== key) delete element[key];
+                                            } else if (def[key]!==key) {
+                                                element[def[key]] = element[key];
+                                                delete element[key];
+                                            }
+                                        } else {
+                                            delete element[key];
+                                        }
+                                    }
+                                })
+                            }                                
+                        }
+                        var flattenObject = function (element) {
+                            var hadChildren = false;
+                            if (typeof element === 'object') {
+                                Object.keys(element).forEach(key => {
+                                    if (typeof element[key] === 'object') {
+                                        hadChildren = true;
+                                        Object.keys(element[key]).forEach (child => {
+                                            element[child] = element[key][child];
+                                        })
+                                        delete element[key];
+                                    }
+                                });
+                                if (hadChildren) flattenObject(element); // check if there are more children
+                            }
+                        }
                         var buildSeries = function (opt,series) {
                             if (series && Array.isArray(series) && series.length>0) {
                                 opt.series = [];                            
                                 series.forEach(element => {
+                                    deleteDefaults(element);
+                                    if (element.hasOwnProperty('points')) {
+                                        translateProperties(element.points, {
+                                            fillColor : "fill",
+                                            strokeColor : "stroke",
+                                            showType : { 
+                                                property : "show",
+                                                translate : input => {
+                                                    let result;
+                                                    switch (input) {
+                                                        case 'show': result = true; break;
+                                                        case 'hide': result = false;
+                                                    }
+                                                    return result;
+                                                },
+                                            },
+                                            dimensions : {
+                                                size : "size",
+                                                width : "width"
+                                            }
+                                        })
+                                        flattenObject(element.points);
+                                    }
                                     let index = opt.series.push(element)-1;
                                     switch (element.path) {
                                         case 'linear': opt.series[index].paths = _linear; break;
@@ -807,7 +879,7 @@ module.exports = function(RED) {
                             } else {
                                 opt.series=[];
                             }
-                            // _console?.log('build series', opt.series);
+                            _console?.log('build series', opt.series);
                         }
 
                         var buildBands = function (opt,plugins) {
