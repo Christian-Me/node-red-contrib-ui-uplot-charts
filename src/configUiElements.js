@@ -388,9 +388,11 @@ export default function configUiElements (node,root,id) {
                     type.valueLabel = function(container,value) {
                         var that = this;
                         var element = that.bindings;
-                        // console.log('valueLabel',value,element.prop('_typedInputData').function.value);
+                        let typeObject = element.prop('_typedInputData');
+                        let typeData = typeObject?.function?.value || value;
+                        console.log('valueLabel',value,typeData);
                         // container.css({"padding-top":"8px","opacity": "0.6"});
-                        var nodeLabel = $(`<span style="display: inline-block; padding-top: 8px; opacity: 0.6;">${element.prop('_typedInputData').function.value}</span>`).appendTo(container);
+                        var nodeLabel = $(`<span style="display: inline-block; padding-top: 8px; opacity: 0.6;">${typeData}</span>`).appendTo(container);
                     }
                     type.expand = function () {
                         var that = this;
@@ -437,7 +439,7 @@ export default function configUiElements (node,root,id) {
                     _typedInputData[type.value]={value};
                     break;
                 case 'function':
-                    _typedInputData[type.value]={"value":type.customValue,cursor:{}};
+                    _typedInputData[type.value]={"value":type.customValue || value,cursor:{}};
                     break;
                 case 'multiValue':
                     _typedInputData[type.value]={value:{}};

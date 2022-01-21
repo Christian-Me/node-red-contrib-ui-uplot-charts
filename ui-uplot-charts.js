@@ -20,7 +20,22 @@ const TimeTable = require('./lib/js/timeTable.cjs.js');
 module.exports = function(RED) {
 
     function HTML(config) {
-        var configAsJson = JSON.stringify(config);
+        var configAsJson = JSON.stringify(config, (key, value) => {
+            // exclude the node description
+            if (key === "info") {
+                return undefined;
+            }
+
+            // replace single quotation mark (apostrophe) by html code in strings
+            if (typeof (value) === "string") {
+                return value.replace(/'/g, '"'); 
+            }
+
+            // all others leave unchanged
+            return value;
+            }
+        );
+        //console.log(configAsJson);
         var plugins = {};
         config.plugins.forEach(element => {plugins[element.plugin] = element.enabled;})
         var html;
@@ -61,12 +76,13 @@ module.exports = function(RED) {
         *   @param  {any}    value value to be added
         *   @param  {object} scope (optional) scope to bind to function
         **/                  
-        function addValueOrFunction (destination,param,value, scope = this) {
+        function addValueOrFunction (destination,param,value, scope) {
             if (typeof String.prototype.parseFunction != 'function') {
                 String.prototype.parseFunction = function () {
-                    var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
+                    var funcReg = /function .*\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
                     var match = funcReg.exec(this.replace(/\n/g, ' '));
                     if(match) {
+                        match[2].replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1'); // remove comments
                         return new Function(match[1].split(','), match[2]);
                     }
                     return null;
@@ -74,13 +90,15 @@ module.exports = function(RED) {
             }
             var valueFunction;
             if (typeof value === "string" && (valueFunction = value.parseFunction())) {
-                destination[param]=valueFunction.bind(scope); // to enable this.send() for callback functions.
+                if (scope!==undefined) {
+                    destination[param]=valueFunction.bind(scope); // to enable this.send() for callback functions.
+                }
             }
             else destination[param]= value;
         }
         /**
         *  merge one objects into another
-        *   @param  {object} destination object to add or uodate
+        *   @param  {object} destination object to add or update
         *   @param  {object} source source object
         **/            
         function mergeObject (destination,source) {
@@ -609,8 +627,9 @@ module.exports = function(RED) {
                         function addValueOrFunction (destination,param,value, scope = this) {
                             if (typeof String.prototype.parseFunction != 'function') {
                                 String.prototype.parseFunction = function () {
-                                    var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
-                                    var match = funcReg.exec(this.replace(/\n/g, ' '));
+                                    var funcReg = /function .*\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
+                                    var noComments = this.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1'); // remove comments https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
+                                    var match = funcReg.exec(noComments.replace(/\n/g, ' '));
                                     if(match) {
                                         return new Function(match[1].split(','), match[2]);
                                     }
@@ -858,6 +877,9 @@ module.exports = function(RED) {
                                         })
                                         flattenObject(element.points);
                                     }
+                                    if (element.hasOwnProperty('legend') && element.legendType === 'function') {
+                                        addValueOrFunction (element,'value',element.legend);
+                                    };
                                     let index = opt.series.push(element)-1;
                                     switch (element.path) {
                                         case 'linear': opt.series[index].paths = _linear; break;

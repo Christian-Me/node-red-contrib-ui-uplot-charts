@@ -6,41 +6,44 @@
         grid: {show:true, stroke:'#7f7f7fcc', width: 1, dash: [1,5]},
         ticks: {show:true, stroke:'#7f7f7fcc', width: 2, dash: [], size: 10}
     };
-    const defaultColors = ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
-    const defaultAxesX =  {
-      space: 40,
-      incrs: [
-         // minute divisors (# of secs)
-         1,
-         5,
-         10,
-         15,
-         30,
-         // hour divisors
-         60,
-         60 * 5,
-         60 * 10,
-         60 * 15,
-         60 * 30,
-         // day divisors
-         3600,
-      // ...
-      ],
-      // [0]:   minimum num secs in found axis split (tick incr)
-      // [1]:   default tick format
-      // [2-7]: rollover tick formats
-      // [8]:   mode: 0: replace [1] -> [2-7], 1: concat [1] + [2-7]
-      values: [
-      // tick incr          default           year                             month    day                        hour     min                sec       mode
-        [3600 * 24 * 365,   "{YYYY}",         null,                            null,    null,                      null,    null,              null,        1],
-        [3600 * 24 * 28,    "{MMM}",          "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
-        [3600 * 24,         "{M}/{D}",        "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
-        [3600,              "{H}",            "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
-        [60,                "{H}:{mm}",       "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
-        [1,                 ":{ss}",          "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
-        [0.001,             ":{ss}.{fff}",    "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
-      ],
-  //  splits:
+    const defaults = {
+        legendFunction : `function(self, rawValue){\n  \\format your legend sting\n  return (rawValue == null) ? '' : rawValue.toFixed(2);\n}`,
+        colors : ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'],
+        axesX : {
+                    space: 40,
+                    incrs: [
+                        // minute divisors (# of secs)
+                        1,
+                        5,
+                        10,
+                        15,
+                        30,
+                        // hour divisors
+                        60,
+                        60 * 5,
+                        60 * 10,
+                        60 * 15,
+                        60 * 30,
+                        // day divisors
+                        3600,
+                    // ...
+                    ],
+                    // [0]:   minimum num secs in found axis split (tick incr)
+                    // [1]:   default tick format
+                    // [2-7]: rollover tick formats
+                    // [8]:   mode: 0: replace [1] -> [2-7], 1: concat [1] + [2-7]
+                    values: [
+                    // tick incr          default           year                             month    day                        hour     min                sec       mode
+                        [3600 * 24 * 365,   "{YYYY}",         null,                            null,    null,                      null,    null,              null,        1],
+                        [3600 * 24 * 28,    "{MMM}",          "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
+                        [3600 * 24,         "{M}/{D}",        "\n{YYYY}",                      null,    null,                      null,    null,              null,        1],
+                        [3600,              "{H}",            "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
+                        [60,                "{H}:{mm}",       "\n{M}/{D}/{YY}",                null,    "\n{M}/{D}",               null,    null,              null,        1],
+                        [1,                 ":{ss}",          "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
+                        [0.001,             ":{ss}.{fff}",    "\n{M}/{D}/{YY} {H}:{mm}",       null,    "\n{M}/{D} {H}:{mm}",      null,    "\n{H}:{mm}",      null,        1],
+                    ],
+                //  splits:
+                },
     }
 
     function RGBtoHEX (rgbaString, returnType = 'HEX') {
@@ -213,7 +216,7 @@
                     data.forEach(item => {
                         addOrUpdateItem(node.series,item,'topic',defaultSeries,
                             (item,index) => {
-                                let color = (defaultColors[index]!==undefined) ? defaultColors[index] : '#ff0000';
+                                let color = (defaults.colors[index]!==undefined) ? defaults.colors[index] : '#ff0000';
                                 item.stroke = HEXtoRGB(color ,100);
                                 item.fill = HEXtoRGB(color,0);
                                 item.topicReadOnly = true;
@@ -444,7 +447,7 @@
                             uiElements.addTypedInput('legend',
                                 [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},
                                  {value:"function",label:"Function",icon:"fa fa-code",
-                                    customValue: data.legend || `(self, rawValue) => {\n  return rawValue.toFixed(2);\n}`},
+                                    customValue: (data.legendType === 'function') ? (data.legend || defaults.legendFunction) : defaults.legendFunction},
                                 ],
                                 data.legend || "default",
                                 data.legendType || "default",(contentWidth)+'%'
@@ -478,7 +481,7 @@
                             uiElements.addInput('topic','text',data.topic || '',contentWidth+'%','',false); // hidden input for topic
                             uiElements.setGroup('series-stroke',true,{id:'series-stroke',label:'stroke',collapsible:true});
                                 uiElements.addLabel('colors');
-                                uiElements.addTypedInput('defaultStrokes',["json"],JSON.stringify(data.defaultStrokes || defaultColors),'json',contentWidth-5+'%');
+                                uiElements.addTypedInput('defaultStrokes',["json"],JSON.stringify(data.defaultStrokes || defaults.colors),'json',contentWidth-5+'%');
                                 uiElements.addElement('br');
                                 uiElements.addText('&nbsp;');
                                 uiElements.addLabel('width',contentWidth/4-5+'%');
@@ -543,13 +546,13 @@
                             uiElements.addLabel('stroke');
                             uiElements.addTypedInput('points.strokeColor',
                                 [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},"json"],
-                                JSON.stringify(data.points?.defaultStrokes || defaultColors), data.points?.defaultStrokesType || "default",(contentWidth)+'%'
+                                JSON.stringify(data.points?.defaultStrokes || defaults.colors), data.points?.defaultStrokesType || "default",(contentWidth)+'%'
                             );
                             uiElements.addElement('br');
                             uiElements.addLabel('fill');
                             uiElements.addTypedInput('points.fillColor',
                                 [{value:"default", label:"Default", icon:"fa fa-times",hasValue:false},"json"],
-                                JSON.stringify(data.points?.defaultFills || defaultColors), data.points?.defaultFillsType || "default",(contentWidth)+'%'
+                                JSON.stringify(data.points?.defaultFills || defaults.colors), data.points?.defaultFillsType || "default",(contentWidth)+'%'
                             );
                         }
                         uiElements.addElement('br');
@@ -561,7 +564,7 @@
                             uiElements.addInput('fill','color',data.fill || defaultSeries.fill,contentWidth+'%');
                         } else {
                             uiElements.addLabel('colors');
-                            uiElements.addTypedInput('defaultFills',["json"],JSON.stringify(data.defaultFills || defaultColors),'json',contentWidth-5+'%');
+                            uiElements.addTypedInput('defaultFills',["json"],JSON.stringify(data.defaultFills || defaults.colors),'json',contentWidth-5+'%');
                         }
                         uiElements.addElement('br');
                     uiElements.closeGroup();
@@ -592,7 +595,7 @@
             let axesContainer = node.uiListElements.default.setRow($('#node-input-axes-top'));
             axesContainer.setGroup('axes-main',true, 'form-row');
                 axesContainer.addClassicLabel('xaxes','fa fa-clock-o');
-                if (!this.axesX) this.axesX = defaultAxesX;
+                if (!this.axesX) this.axesX = defaults.axesX;
                 axesContainer.addButton('24h','24h','10%','click',(button => {
                         axesContainer.setInput('24h','<i class="fa fa-spinner fa-spin">');
                         uplotGetConfig(node,'axesX','24h',(data => {
