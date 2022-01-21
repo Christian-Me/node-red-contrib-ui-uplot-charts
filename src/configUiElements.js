@@ -324,13 +324,14 @@ export default function configUiElements (node,root,id) {
                 case 'colorPalette':
                     type.valueLabel = function(container,value) {
                         var that = this;
+                        console.log('colorPalette',container,value);
                         if (container.children().length===0)  {
                             let typeElement = that[that.propertyType] = {};
                             let customValue = that.bindings.prop('_typedInputData')?.[that.propertyType]?.value || value;
                             typeElement.picker = RED.editor.colorPicker.create({
                                 id:`${that.identifier}-${that.propertyType}`,
                                 value: customValue,
-                                palette: defaultColors,
+                                palette: ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'], //that.bindings.prop('_typedInputData')?.[that.propertyType]?.palette || [],
                                 cellPerRow: 9,
                                 cellWidth: 16,
                                 cellHeight: 16,
